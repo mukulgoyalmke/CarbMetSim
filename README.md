@@ -1,6 +1,19 @@
 # CarbMetSim
 A discrete event simulator for tracking blood glucose level based on carbodydrate metabolism in human body.
 
+Authors:
+--------------
+Mukul Goyal (mukul@uwm.edu)
+
+Buket Aydas (baydas@uwm.edu)
+
+Husam Ghazaleh (ghazaleh@uwm.edu)
+
+Tanawat Khunlerkit (tanawat@uwm.edu)
+
+
+Usage:
+----------------
 The simulator is implemented in C++. A simple makefile has been provided.
 
 Run the simulator in the following manner:
