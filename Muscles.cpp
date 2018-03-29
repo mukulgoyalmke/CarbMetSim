@@ -101,6 +101,7 @@ void Muscles::processTick()
     glycogenSynthesizedPerTick = 0;
     glycogenBreakdownPerTick = 0;
     glycogenOxidizedPerTick = 0;
+    oxidationPerTick = 0;
 
     double x; // to hold the random samples
     double currEnergyNeed = body->currentEnergyExpenditure();
@@ -122,36 +123,27 @@ void Muscles::processTick()
 	}
         
         double glycogenShare;
-        double fatShare;
         double intensity = body->exerciseTypes[body->currExercise].intensity_;
         if( intensity >= 6.0 )
         {
             glycogenShare = 0.3; // for MET 6 and above, 30% of energy comes from glycogen
-            fatShare = 0.4;
         }
         else
         {
                 if( intensity < 3.0 )
                 {
                     glycogenShare = 0;
-                    fatShare = 0.9;
                 }
                 else
                 {
                     glycogenShare = 0.3*(intensity - 3.0 )/3.0;
-                    fatShare = 0.9 -0.5*(intensity - 3.0)/3.0;
                 }
         }
         x = (double)(rand__(SimCtl::myEngine()));
         glycogenOxidizedPerTick = glycogenShare*(x/100.0)*1000.0*currEnergyNeed/4.0; // in milligrams
-        x = (double)(rand__(SimCtl::myEngine()));
-        double energyFromFat = fatShare*(x/100.0)*currEnergyNeed; // in kcal
-        
         glycogen -= glycogenOxidizedPerTick;
         glycogenBreakdownPerTick += glycogenOxidizedPerTick;
 
-        body->adiposeTissue->consumeFat(energyFromFat);
-        
         // do glycolysis
         
         if( intensity < 18.0 )
@@ -170,18 +162,21 @@ void Muscles::processTick()
         glycogen -= glycolysisPerTick;
         glycogenBreakdownPerTick += glycolysisPerTick;
         body->blood->lactate += glycolysisPerTick;
+
+	double kcalgenerated = (oxidationPerTick + glycogenOxidizedPerTick)*0.004 + 
+				glycolysisPerTick*0.004/15.0;
+	if( kcalgenerated < currEnergyNeed )
+        	body->adiposeTissue->consumeFat(currEnergyNeed - kcalgenerated);
     }
     else
     {
+	// basal absorption
         x = (double)(basalAbsorption__(SimCtl::myEngine()));
         x = x*(body->bodyWeight)/1000.0;
         
         body->blood->removeGlucose(x);
 	glucoseAbsorbedPerTick = x;
-
-        glycogen += (1.0 - glucoseOxidationFraction_)*x;
-        glycogenSynthesizedPerTick += (1.0 - glucoseOxidationFraction_)*x;
-	oxidationPerTick = glucoseOxidationFraction_*x;
+	glucose += x;
 
         // Absorption via GLUT4
         
@@ -200,25 +195,9 @@ void Muscles::processTick()
 
             body->blood->removeGlucose(g);
 	    glucoseAbsorbedPerTick += g;
-
-            glycogen += (1.0 - glucoseOxidationFraction_)*g;
-            glycogenSynthesizedPerTick += (1.0 - glucoseOxidationFraction_)*g;
-	    oxidationPerTick += glucoseOxidationFraction_*g;
+	    glucose += g;
         }
 
-        if(glycogen > glycogenMax_)
-        {
-            //glucose += glycogen - glycogenMax_;
-            oxidationPerTick += glycogen - glycogenMax_;
-            glycogenSynthesizedPerTick -= glycogen - glycogenMax_;
-
-    	    //SimCtl::time_stamp();
-            //cout << "Muscle Glycogen Maxed. Oxidizing extra glucose " <<
-		//	glycogen - glycogenMax_ << endl;
-
-            glycogen = glycogenMax_;
-        }
-        
         // glycolysis
         //Gerich paper says that 2.22 micromol (per kg per minute) of glucose is consumed by muscles in
         // post-absorptive state (the number is abt 20 micromol per kg per minute in post-prandial state
@@ -263,11 +242,29 @@ void Muscles::processTick()
             }
         }
         
+	// oxidation
+	oxidationPerTick = 0.5*glucose;
+	glucose *= 0.5;
 
-        // consume fat for 90% of the energy needs during resting state
-        x = (double)(rand__(SimCtl::myEngine()));
-        double energyFromFat = 0.9*(x/100.0)*currEnergyNeed; // in kcal
-        body->adiposeTissue->consumeFat(energyFromFat);
+	// glycogen synthesis
+        if( glucose > 0 )
+        {
+        	//g = (1.0 - body->insulinResistance_)*glucose;
+		g = glucose;
+
+		if( glycogen + g > glycogenMax_ )
+			g = glycogenMax_ - glycogen;
+		
+        	glycogen += g;
+            	glycogenSynthesizedPerTick += g;
+		glucose -= g; 
+        }
+        
+        // consume fat for the remaining energy needs during resting state
+        double kcalgenerated = oxidationPerTick*0.004 + glycolysisPerTick*0.004/15.0;
+		// oxidation produces 15 times more energy than glycolysis 
+        if( kcalgenerated < currEnergyNeed )
+           body->adiposeTissue->consumeFat(currEnergyNeed-kcalgenerated);
     }
     
     if( glycogen < 0 )
@@ -307,6 +304,8 @@ void Muscles::processTick()
     cout << " Muscles:: GlycogenOxidation " << glycogenOxidizedPerTick << endl;
     SimCtl::time_stamp();
     cout << " Muscles:: Glycolysis " << glycolysisPerTick << endl;
+    SimCtl::time_stamp();
+    cout << " Muscles:: Glucose " << glucose << endl;
 }
 
 Muscles::Muscles(HumanBody* myBody)
@@ -317,7 +316,7 @@ Muscles::Muscles(HumanBody* myBody)
     // Frayn Chapter 9
     glycogen = glycogenMax_;
     glucose = 0;
-    volume_ = 1;
+    volume_ = 10;
     
     
     baaToGlutamine_ = 0;

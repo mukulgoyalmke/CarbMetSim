@@ -190,7 +190,7 @@ int main(int argc, char *argv[])
     cout << std::setprecision(3);
     
     if (argc != 5) {
-        cout << "Syntax: glucosim foodsfile exercisefile metabolicratesfile eventsfile\n";
+        cout << "Syntax: carbmetsim foodsfile exercisefile metabolicratesfile eventsfile\n";
         exit(1);
     }
     // Create simulation controller

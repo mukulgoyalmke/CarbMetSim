@@ -198,7 +198,9 @@ void Blood::processTick(){
 
     SimCtl::time_stamp();
     cout << " Blood:: glycolysis " << glycolysisPerTick << endl;
-    //" insulin " << insulinLevel << " lactate " << lactate << " glutamine " << glutamine << " alanine " << alanine << " gngsubs " << gngSubstrates << " bAA " << branchedAminoAcids << " uAA " <<  unbranchedAminoAcids << endl;
+    SimCtl::time_stamp();
+    cout << " Blood:: insulinLevel " << insulinLevel << endl;
+    //" lactate " << lactate << " glutamine " << glutamine << " alanine " << alanine << " gngsubs " << gngSubstrates << " bAA " << branchedAminoAcids << " uAA " <<  unbranchedAminoAcids << endl;
 }
 
 double Blood::consumeGNGSubstrates(double howmuch)

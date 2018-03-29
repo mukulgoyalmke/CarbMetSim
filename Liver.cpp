@@ -88,7 +88,7 @@ void Liver::processTick()
         scale *= glInLiver/baseBGL;
     }
     
-    //scale *= (1.0 - body->insulinResistance_);
+    scale *= (1.0 - body->insulinResistance_);
     //scale *= body->blood->insulinLevel;
     //if( body->blood->insulinLevel == 0 ) scale = 0;
     scale *= 0.5*(1 + erf((body->blood->insulinLevel - glycogenSynth_Insulin_Mean_)/(glycogenSynth_Insulin_StdDev_*sqrt(2))));
