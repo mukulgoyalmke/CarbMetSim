@@ -47,8 +47,24 @@ public:
     void setParams(); // send organs their new rates when the state changes
     
     BodyState bodyState;
-    double insulinResistance_;
-    double insulinPeakLevel_;
+
+    double glut4Impact_;
+    double liverGlycogenBreakdownImpact_;
+    double liverGlycogenSynthesisImpact_;
+    double gngImpact_;
+    double glycolysisMinImpact_;
+    double glycolysisMaxImpact_;
+    double excretionKidneysImpact_;
+
+	double insulinImpactOnGlycolysis_Mean;
+	double insulinImpactOnGNG_Mean;
+	double insulinImpactGlycogenBreakdownInLiver_Mean;
+	double insulinImpactGlycogenSynthesisInLiver_Mean;
+	double insulinImpactOnGlycolysis_StdDev;
+	double insulinImpactOnGNG_StdDev;
+	double insulinImpactGlycogenBreakdownInLiver_StdDev;
+	double insulinImpactGlycogenSynthesisInLiver_StdDev;
+
     double bodyWeight;
     double fatFraction_;
     unsigned currExercise;
@@ -78,6 +94,29 @@ public:
     void stomachEmpty();
     bool isExercising();
     double currentEnergyExpenditure();
+
+    double totalGlycolysisSoFar;
+    double totalOxidationSoFar;
+    double totalGlycogenStorageSoFar;
+    double totalGlycogenBreakdownSoFar;
+    double totalGNGSoFar;
+    double totalEndogeneousGlucoseReleaseSoFar;
+    double totalGlucoseReleaseSoFar;
+
+    double glycolysis(double min, double max);
+
+    double insulinImpactOnGlycolysis();
+    double insulinImpactOnGNG();
+    double insulinImpactOnGlycogenSynthesisInLiver();
+    double insulinImpactOnGlycogenBreakdownInLiver();
+
+	double tempGNG;
+	double tempGlycolysis;
+	double tempOxidation;
+	double tempExcretion;
+	double tempGlycogenStorage;
+	double tempGlycogenBreakdown;
+
 };
 
 

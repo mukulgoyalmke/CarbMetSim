@@ -17,6 +17,8 @@ class Muscles
     double glycolysisMin_;
     double glycolysisMax_;
 
+    double glucoseToGlycogen_;
+
     double Glut4Km_;
     double Glut4VMAX_; // mg per kg per minute
 
@@ -28,6 +30,7 @@ class Muscles
     double oxidationPerTick;
     double glycogenOxidizedPerTick;
     double glycolysisPerTick;
+    double totalGlucoseAbsorbed;
 public:
     
     //Set default values

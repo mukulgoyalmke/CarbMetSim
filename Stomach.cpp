@@ -49,11 +49,6 @@ void Stomach::processTick()
 
     	double geBolus = geConstant + geSlope*totalFood;
 
-    	//SimCtl::time_stamp();
-	//cout << " Gastric Emptying:: Total Food " << totalFood << " Calorific Density " << calorificDensity
-	//<< " geSlopeMin " << geSlopeMin << " geSlope " << geSlope << " geConstant " << geConstant 
-	//<< " Bolus " << geBolus << endl;
-
 	if( geBolus > totalFood )
 		geBolus = totalFood;
 
@@ -68,6 +63,10 @@ void Stomach::processTick()
 	fat -= fatInBolus;
 
 	body->intestine->addChyme(ragInBolus,sagInBolus,proteinInBolus,fatInBolus);
+
+    	SimCtl::time_stamp();
+	cout << " Gastric Emptying:: Total Food " << totalFood << " Calorific Density " << calorificDensity
+	<< " geSlope " << geSlope <<  " ragInBolus " << ragInBolus << " sagInBolus " << sagInBolus << endl;
 
     	if( (RAG == 0) && (SAG == 0) && (protein == 0) && (fat == 0) )
     	{
@@ -129,7 +128,7 @@ Stomach::Stomach(HumanBody* body_)
 
     stomachEmpty = true;
 
-    geConstant_ = 100.0; // mg
-    geSlopeMin_ = 0.01; 
+    geConstant_ = 500.0; // mg
+    geSlopeMin_ = 0.03; 
 }
 

@@ -29,8 +29,8 @@ void Heart::processTick()
     
     oxidationPerTick = basalAbsorption;
 
+   /********** 
     // Absorption via GLUT4
-    
     double bgl = body->blood->getBGL();
     double scale = (1.0 - body->insulinResistance_)*(body->blood->insulinLevel)*(body->bodyWeight);
     double g = scale*Glut4VMAX_*bgl/(bgl + Glut4Km_);
@@ -38,6 +38,7 @@ void Heart::processTick()
     body->blood->removeGlucose(g);
 
     oxidationPerTick += g;
+   ***************/
 
     SimCtl::time_stamp();
     cout << " Heart:: Oxidation " << oxidationPerTick << endl;

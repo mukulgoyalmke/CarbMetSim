@@ -25,6 +25,10 @@ void Intestine::addChyme(double rag, double sag, double proteinInChyme, double f
 void Intestine::processTick()
 {
 	// digest some chyme
+	double totalRAGConsumed = 0;
+	double totalSAGConsumed = 0;
+	bool allDigested = true;
+
 	for(list<Chyme>::iterator itr = chyme.begin(); itr != chyme.end(); itr++)
 	{
     		double RAGConsumed = 0;
@@ -41,11 +45,12 @@ void Intestine::processTick()
     		if( itr->RAG < RAGConsumed )
         		RAGConsumed = itr->RAG;
     
-		if( itr->RAG < 0.01*(itr->origRAG) )
-			RAGConsumed = itr->RAG;
+		//if( itr->RAG < 0.01*(itr->origRAG) )
+		//	RAGConsumed = itr->RAG;
 
     		itr->RAG -= RAGConsumed;
     		glucoseInLumen += RAGConsumed;
+		totalRAGConsumed += RAGConsumed;
 
     		// digest some SAG now
     
@@ -61,20 +66,33 @@ void Intestine::processTick()
         	if( itr->SAG < SAGConsumed )
             		SAGConsumed = itr->SAG;
         
-		if( itr->SAG < 0.01*(itr->origSAG) )
-			SAGConsumed = itr->SAG;
+		//if( itr->SAG < 0.01*(itr->origSAG) )
+		//	SAGConsumed = itr->SAG;
 
         	itr->SAG -= SAGConsumed;
         	glucoseInLumen += SAGConsumed;
+		totalSAGConsumed += SAGConsumed;
 
     		//SimCtl::time_stamp();
     		//cout << " Chyme:: RAG " << itr->RAG << " SAG " << itr->SAG << " origRAG " << itr->origRAG 
-		//<< " origSAG " << itr->origSAG << " glucoseInLumen " << glucoseInLumen << " RAGConsumed " 
-		//<< RAGConsumed << " SAGConsumed " << SAGConsumed << endl;
+		//<< " origSAG " << itr->origSAG << " RAGConsumed " << RAGConsumed << " SAGConsumed " << SAGConsumed << endl;
 
-    		if( itr->RAG == 0 && itr->SAG == 0 )
-    			itr = chyme.erase(itr);
+    		//if( itr->RAG == 0 && itr->SAG == 0 )
+    		//	itr = chyme.erase(itr);
+		if( itr->RAG > 0 || itr->SAG > 0 )
+			allDigested = false;
 	}
+
+	if( allDigested )
+	   chyme.clear();
+
+	totalRAGDigested += totalRAGConsumed;
+	totalSAGDigested += totalSAGConsumed;
+
+    	SimCtl::time_stamp();
+    	cout << " Intestine:: RAGConsumed " << totalRAGConsumed << " SAGConsumed " << totalSAGConsumed << endl;
+    	//cout << " Intestine:: RAGConsumed " << totalRAGDigested << " SAGConsumed " << totalSAGDigested << " total " <<
+	//totalRAGDigested + totalSAGDigested << endl;
 
     	// some of the glucose is absorbed by the enterocytes (some of which moves to the portal vein)
     	 absorbGlucose();
@@ -162,10 +180,10 @@ Intestine::Intestine(HumanBody* body_)
 {
     body = body_;
 
-    RAG_Mean_ = 5;
-    RAG_StdDev_ = 5;
-    SAG_Mean_ = 60;
-    SAG_StdDev_ = 20;
+    RAG_Mean_ = 2;
+    RAG_StdDev_ = 0.5;
+    SAG_Mean_ = 30;
+    SAG_StdDev_ = 10;
     
     protein = 0; // mg
     glucoseInLumen = 0; // in milligrams
@@ -178,9 +196,9 @@ Intestine::Intestine(HumanBody* body_)
     
     //Michaelis Menten parameters for glucose transport
     Glut2Km_In_ = 20*180.1559/10.0; // mg/deciliter equal to 20 mmol/l (Frayn Table 2.2.1)
-    Glut2VMAX_In_ = 700; //mg
+    Glut2VMAX_In_ = 800; //mg
     Glut2Km_Out_ = 20*180.1559/10.0; // mg/deciliter equal to 20 mmol/l (Frayn Table 2.2.1)
-    Glut2VMAX_Out_ = 700; //mg
+    Glut2VMAX_Out_ = 800; //mg
     //active transport rate
     sglt1Rate_ = 30; //mg per minute
     
@@ -190,9 +208,12 @@ Intestine::Intestine(HumanBody* body_)
     glutamineOxidationRate_ = 1; // mg per minute
     glutamineToAlanineFraction_ = 0.5;
     
-    //Gerich: insulin dependent: 1 to 5 micromol per kg per minute
-    glycolysisMin_ = 0.1801559;
-    glycolysisMax_ = 5*glycolysisMin_;
+    //Gerich: insulin dependent: 0.5 to 5 micromol per kg per minute
+    glycolysisMin_ = 0.35*0.5*0.1801559;
+    glycolysisMax_ = 0.35* 2.0*0.1801559;
+
+	totalRAGDigested = 0;
+	totalSAGDigested = 0;
 }
 
 void Intestine::absorbGlucose()
@@ -284,14 +305,8 @@ void Intestine::absorbGlucose()
     
     //Glycolysis. Depends on insulin level. Consumed glucose becomes lactate (Ref: Gerich).
     
-    double scale = (1.0 - body->insulinResistance_)*(body->blood->insulinLevel);
-    
-    x = (double)(glycolysisMin__(SimCtl::myEngine()));
-    x *= body->bodyWeight/1000.0;
-    if( x > glycolysisMax_*(body->bodyWeight))
-        x = glycolysisMax_*(body->bodyWeight);
-    
-    glycolysisPerTick = x + scale* ( (glycolysisMax_*(body->bodyWeight)) - x);
+    x = (double)(glycolysisMin__(SimCtl::myEngine()))/1000.0;
+    glycolysisPerTick = body->glycolysis(x,glycolysisMax_);
     
     if( glycolysisPerTick > glucoseInEnterocytes)
     {

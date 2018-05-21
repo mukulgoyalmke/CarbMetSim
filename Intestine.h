@@ -17,6 +17,9 @@ class Intestine
 {
     friend class HumanBody;
 
+	double totalRAGDigested;
+	double totalSAGDigested;
+
     list<Chyme> chyme;
     double protein; // mg
 

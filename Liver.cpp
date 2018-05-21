@@ -13,28 +13,27 @@ Liver::Liver(HumanBody* body_)
     
     // Frayn Chapter 9
     
-    // 5 micromol per kg per minute = 5*180.1559/1000 mg per kg per minute = 0.9007795 mg per kg per minute (ref: Gerich paper)
-	// default max glycogen breakdown rate is 10 micromol per kg per minute
-    glycogenToGlucose_ = 2*0.9007795;
-    glucoseToGlycogen_ = glycogenToGlucose_; // for now
+    // 5 micromol per kg per minute = 5*180.1559/1000 mg per kg per minute (ref: Gerich paper)
+	// default max glycogen breakdown rate is 5 micromol per kg per minute
+    glycogenToGlucose_ = 5.5 * 0.1801559;
+    glucoseToGlycogen_ = 33.0 * 0.1801559; 
 
-    glycogenSynth_Insulin_Mean_ = 0.075;
-    glycogenSynth_Insulin_StdDev_ = 0.02;
-
-    //Gerich paper: Liver consumes 1.65 micromol per kg per minute to 16.5 micromol per kg per minute of glucose depending upon post-absorptive/post-prandial state.
-    glycolysisMin_ = 0.297; //mg per kg per minute
-    glycolysisMax_ = 2.972;
+    //Gerich paper: Liver consumes 1 micromol per kg per minute to 16.5 micromol per kg per minute of glucose depending upon post-absorptive/post-prandial state.
+    glycolysisMin_ = 0.35 * 0.1801559; //mg per kg per minute
+    glycolysisMax_ = 0.35 * 10 * 0.1801559; //mg per kg per minute
     
     glycolysisToLactateFraction_ = 1; // by default glycolysis just generates all lactate
     
-    // 2.5 micromol per kg per minute = 2.5*180.1559/1000 mg per kg per minute = 0.45038975 mg per kg per minute
-    // default gng rate is 5 micromol per kg per minute
-    gluconeogenesisRate_ = 2.0*0.45038975;
-    gngFromLactateRate_ = 9*gluconeogenesisRate_; //by default
+    // 1 micromol per kg per minute = 0.1801559 mg per kg per minute
+    double micromol = 0.1801559;
+    gngFromLactate_ = 0.42 * 2.0 * micromol; 
+    gngFromGlycerol_ = 0.42 * 0.5 * micromol; 
+    gngFromGlutamine_ = 0.42 * 0.5 * micromol; 
+    gngFromAlanine_ = 0.42 * 1.0 * micromol; 
     
     glucoseToNEFA_ = 0;
     
-    fluidVolume_ = 10; //dl
+    fluidVolume_ = 12; //dl; Meyer paper on gluconeogenesis did measurements on liver volume
     glucose = 100*fluidVolume_; // assuming glucose concentration to be 100mg/dl
 
     Glut2Km_ = 20*180.1559/10.0; // mg/deciliter equal to 20 mmol/l (Frayn Table 2.2.1)
@@ -43,17 +42,20 @@ Liver::Liver(HumanBody* body_)
 
 void Liver::processTick()
 {
-    double baseBGL = body->blood->baseBGL();
-
     double x; // to hold the random samples
     
     static std::poisson_distribution<int> glycogenToGlucose__ (1000.0*glycogenToGlucose_);
     static std::poisson_distribution<int> glucoseToGlycogen__ (1000.0*glucoseToGlycogen_);
     static std::poisson_distribution<int> glycolysisMin__ (1000.0*glycolysisMin_);
-    static std::poisson_distribution<int> gngRate__ (1000.0*gluconeogenesisRate_);
-    static std::poisson_distribution<int> gngFromLactateRate__ (1000.0*gngFromLactateRate_);
+    static std::poisson_distribution<int> gngFromLactate__ (1000.0*gngFromLactate_);
+    static std::poisson_distribution<int> gngFromGlycerol__ (1000.0*gngFromGlycerol_);
+    static std::poisson_distribution<int> gngFromGlutamine__ (1000.0*gngFromGlutamine_);
+    static std::poisson_distribution<int> gngFromAlanine__ (1000.0*gngFromAlanine_);
     static std::poisson_distribution<int> Glut2VMAX__ (1000.0*Glut2VMAX_);
     
+    absorptionPerTick = 0;
+    releasePerTick = 0;
+
     double glInPortalVein = body->portalVein->getConcentration();
     double glInLiver = glucose/fluidVolume_;
     
@@ -79,19 +81,10 @@ void Liver::processTick()
     //release all portalVein glucose to blood
     body->portalVein->releaseAllGlucose();
 
-    // glycogen synthesis (depends on insulin and glucose level)
+    // glycogen synthesis (depends on insulin level and insulin resistance)
     
-    glInLiver = glucose/fluidVolume_;
-    double scale = 1.0;
-    if( glInLiver > baseBGL )
-    {
-        scale *= glInLiver/baseBGL;
-    }
-    
-    scale *= (1.0 - body->insulinResistance_);
-    //scale *= body->blood->insulinLevel;
-    //if( body->blood->insulinLevel == 0 ) scale = 0;
-    scale *= 0.5*(1 + erf((body->blood->insulinLevel - glycogenSynth_Insulin_Mean_)/(glycogenSynth_Insulin_StdDev_*sqrt(2))));
+    double scale = body->insulinImpactOnGlycogenSynthesisInLiver();
+    scale *= body->liverGlycogenSynthesisImpact_;
 
     x = (double)(glucoseToGlycogen__(SimCtl::myEngine()));
     double toGlycogen = scale * x * (body->bodyWeight)/1000.0;
@@ -122,16 +115,13 @@ void Liver::processTick()
     
     //cout << "After glycogen synthesis in liver, liver glycogen " << glycogen << " mg, live glucose " << glucose << " mg" << endl;
     
-    //glycogen breakdown (depends on insulin and glucose level)
+    //glycogen breakdown (depends on insulin level and insulin resistance)
     
-    scale = 1 - (body->blood->insulinLevel)*(1 - (body->insulinResistance_));
-    glInLiver = glucose/fluidVolume_;
-    
-    if( glInLiver > baseBGL )
-    {
-        scale *= baseBGL/glInLiver;
-    }
-    
+    scale = body->liverGlycogenBreakdownImpact_;
+    //cout << "Puzzle " << scale << " ";
+    scale *= body->insulinImpactOnGlycogenBreakdownInLiver();
+    //cout << scale << " ";
+
     x = (double)(glycogenToGlucose__(SimCtl::myEngine()));
     double fromGlycogen = scale * x * (body->bodyWeight)/1000.0;
     
@@ -145,21 +135,13 @@ void Liver::processTick()
     }
     fromGlycogenPerTick = fromGlycogen;
 
-    //cout << "After glycogen breakdown in liver, liver glycogen " << glycogen << " mg, liver glucose " << glucose << " mg, blood glucose " << body->blood->glucose << " mg, blood lactate " << body->blood->lactate << " mg" << endl;
-
-    
+    //cout << x << endl;
     //Glycolysis. Depends on insulin level. Some of the consumed glucose becomes lactate.
     
     //Gerich paper: Liver consumes 1.65 micomol per kg per minute to 16.5 micomol per kg per minute of glucose depending upon post-absorptive/post-prandial state.
     
-    scale = (1.0 - body->insulinResistance_)*(body->blood->insulinLevel);
-    
-    x = (double)(glycolysisMin__(SimCtl::myEngine()));
-    x *= (body->bodyWeight)/1000.0;
-    if( x > glycolysisMax_*(body->bodyWeight))
-        x = glycolysisMax_*(body->bodyWeight);
-
-    double toGlycolysis = x + scale* ( (glycolysisMax_*(body->bodyWeight)) - x);
+    x = (double)(glycolysisMin__(SimCtl::myEngine()))/1000.0;
+    double toGlycolysis = body->glycolysis(x,glycolysisMax_);
     
     if( toGlycolysis > glucose)
         toGlycolysis = glucose;
@@ -167,27 +149,35 @@ void Liver::processTick()
     body->blood->lactate += toGlycolysis*glycolysisToLactateFraction_;
     glycolysisPerTick = toGlycolysis;
 
-    //SimCtl::time_stamp();
-    //cout << " glycolysis in liver " << toGlycolysis << "mg" << endl;
-    //cout << "After glycolysis , liver glucose " << glucose << " mg, blood lactate " << body->blood->lactate << " mg" << endl;
-    
-    //gluconeogenesis. Depends on insulin level and on substrate concentration.
-    
-    scale = 1 - (body->blood->insulinLevel)*(1 - (body->insulinResistance_));
-    x = (double)(gngRate__(SimCtl::myEngine()));
-    double gng = x *scale * (body->bodyWeight)/1000.0;
-    gng = body->blood->consumeGNGSubstrates(gng);
+    //gluconeogenesis.
+ 
+    scale = body->insulinImpactOnGNG();
+    // from non-lactate sources
+    double gng =  (double)(gngFromGlycerol__(SimCtl::myEngine()))
+    		+ (double)(gngFromGlutamine__(SimCtl::myEngine()))
+    		+ (double)(gngFromAlanine__(SimCtl::myEngine()));
+    gng *= scale * (body->gngImpact_) * (body->bodyWeight)/1000.0;
     if( gng > 0 )
     {
     	glucose += gng;
-    	//SimCtl::time_stamp();
-    	//cout << " gng in liver " << gng << "mg" << endl;
     }
     gngPerTick = gng;
-    
-    //Gluconeogenesis will occur even in the presence of high insulin in proportion to lactate concentration. 
 
-    x = (double)(gngFromLactateRate__(SimCtl::myEngine()));
+    // from lactate
+    gng = (double)(gngFromLactate__(SimCtl::myEngine()));
+    gng *= scale * (body->gngImpact_) * (body->bodyWeight)/1000.0;
+	//cout << "Puzzle " << gng << " ";
+    gng = body->blood->consumeGNGSubstrates(gng);
+	//cout << gng << endl;
+    if( gng > 0 )
+    {
+    	glucose += gng;
+    }
+    gngPerTick += gng;
+
+/*******************************
+    //Gluconeogenesis will occur even in the presence of high insulin in proportion to lactate concentration. 
+    x = (double)(gngFromHighLactate__(SimCtl::myEngine()));
     x *= (body->bodyWeight)/1000.0;
     x = body->blood->gngFromHighLactate(x);
     if( x > 0 )
@@ -197,7 +187,8 @@ void Liver::processTick()
     	//cout << " gng in liver from high lactate " << x << "mg" << endl;
     }
     gngPerTick += x;
-    
+**********************************/
+
     //cout << "After GNG , liver glucose " << glucose << " mg, liver glycogen " << glycogen << " mg, blood glucose " << body->blood->glucose << " mg, blood lactate " << body->blood->lactate << " mg" << endl;
     
     //BUKET NEW: 93% of unbranched amino acids in portal vein are retained in Liver, because the leaked amino acids from Intestine consists of 15% branched and 85% unbranched, but after liver consumption the percentage needs to be 70% branched, 30% unbranched. To provide these percentages 93% of unbranched amino acids in portal vein are retained in liver. (From Frayn's book)
@@ -215,8 +206,6 @@ void Liver::processTick()
     glInLiver = glucose/fluidVolume_;
     double bgl = body->blood->getBGL();
     
-    releasePerTick = 0;
-
     if( glInLiver > bgl )
     {
         double diff = glInLiver - bgl;
@@ -233,8 +222,6 @@ void Liver::processTick()
         glucose -= g;
         body->blood->addGlucose(g);
 	releasePerTick = g;
-        //SimCtl::time_stamp();
-        //cout << " Liver released glucose " << g << "mg to blood" << endl;
     }
     
     SimCtl::time_stamp();
@@ -292,13 +279,9 @@ void Liver::setParams()
         {
             glycolysisToLactateFraction_ = itr->second;
         }
-        if(itr->first.compare("gluconeogenesisRate_") == 0)
+        if(itr->first.compare("gngFromLactate_") == 0)
         {
-            gluconeogenesisRate_ = itr->second;
-        }
-        if(itr->first.compare("gngFromLactateRate_") == 0)
-        {
-            gngFromLactateRate_ = itr->second;
+            gngFromLactate_ = itr->second;
         }
         if(itr->first.compare("glucoseToNEFA_") == 0)
         {

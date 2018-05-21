@@ -16,7 +16,6 @@ Blood::Blood(HumanBody* myBody)
     glycationProbConst_ = 0;
     
     // all contents are in units of milligrams of glucose
-    glucose = 5000.0; //5000.0; //15000.0;
     fluidVolume_ = 50.0; // in deciliters
     
     gngSubstrates = 0;
@@ -24,15 +23,26 @@ Blood::Blood(HumanBody* myBody)
     branchedAminoAcids = 0;
     unbranchedAminoAcids = 0;
     glutamine = 0;
-    insulinLevel = 0;
+    //baseInsulinLevel_ = 1.0/6.0;
+    baseInsulinLevel_ = 0;
+    peakInsulinLevel_ = 1.0;
+    insulinLevel = baseInsulinLevel_;
+
+/***************
+    currIndex = 1;
+    for(int i = 0; i <= INSULIN_DELAY; i++ )
+	pastInsulinLevels[i] = 0.0;
+****************/
     
-    //Gerich: insulin dependent: 1 to 5 micromol per kg per minute
-    glycolysisMin_ = 0.1801559;
-    glycolysisMax_ = 5*glycolysisMin_;
+    //Gerich: insulin dependent: 0.5 to 5 micromol per kg per minute
+    glycolysisMin_ = 0.35 * 0.5 * 0.1801559;
+    //glycolysisMax_ = 0.35 * 5 * 0.1801559;
+    glycolysisMax_ = 0.35 * 2 * 0.1801559;
     
     glycolysisToLactate_ = 1.0;
 
     baseGlucoseLevel_ = 100; //mg/dl
+    glucose = baseGlucoseLevel_ * fluidVolume_;
     highGlucoseLevel_ = 200; //mg/dl
     minGlucoseLevel_ = 40; //mg/dl
     highLactateLevel_ = 4053.51; // mg
@@ -47,10 +57,26 @@ Blood::Blood(HumanBody* myBody)
         AgeBins[i].glycatedRBCs = 0.06*rbcBirthRate_;
     }
     
+    avgBGL = 100.0;
+
     avgBGLOneDay = 0;
     avgBGLOneDaySum = 0;
     avgBGLOneDayCount = 0;
+
+	totalGlycolysisSoFar = 0;
 }
+
+/****************
+double Blood::delayedInsulinLevel()
+{
+    int index = currIndex + INSULIN_DELAY;
+    
+    if( index > INSULIN_DELAY )
+        index -= (INSULIN_DELAY + 1);
+    
+	return pastInsulinLevels[index];
+}
+******************/
 
 void Blood::updateRBCs()
 {
@@ -146,41 +172,55 @@ void Blood::processTick(){
     //RBCs consume about 25mg of glucose every minute and convert it to lactate via glycolysis.
     //Gerich: Glycolysis. Depends on insulin level. Some of the consumed glucose becomes lactate.
     
-    double scale = (1.0 - body->insulinResistance_)*(insulinLevel);
+    x = (double)(glycolysisMin__(SimCtl::myEngine()))/1000.0;
+    double toGlycolysis = body->glycolysis(x,glycolysisMax_);
 
-    x = (double)(glycolysisMin__(SimCtl::myEngine()));
-    x = x*(body->bodyWeight)/1000.0;
-    
-    if( x > glycolysisMax_*(body->bodyWeight))
-        x = glycolysisMax_*(body->bodyWeight);
-    
-    double toGlycolysis = x + scale * ( (glycolysisMax_*(body->bodyWeight)) - x);
-    
     if( toGlycolysis > glucose)
         toGlycolysis = glucose;
     
     glucose -= toGlycolysis;
     glycolysisPerTick = toGlycolysis;
     body->blood->lactate += glycolysisToLactate_*toGlycolysis;
-    //cout << "Glycolysis in blood, blood glucose " << glucose << " mg, lactate " << lactate << " mg" << endl;
     
     double bgl = glucose/fluidVolume_;
     
     //update insulin level
-    
+
     if( bgl >= highGlucoseLevel_)
-        insulinLevel = body->insulinPeakLevel_;
+        insulinLevel = peakInsulinLevel_;
     else
     {
-        if( bgl <= baseGlucoseLevel_)
-            insulinLevel = 0;
-        else
-        {
-            insulinLevel = (body->insulinPeakLevel_)*(bgl - baseGlucoseLevel_)/(highGlucoseLevel_ - baseGlucoseLevel_);
-            //insulinLevel = (body->insulinPeakLevel_)*0.5*(1 + erf((bgl - baseGlucoseLevel_ - insulinLevel_Mean_)/(insulinLevel_StdDev_*sqrt(2))));
-        }
+    	insulinLevel = baseInsulinLevel_ + (peakInsulinLevel_ - baseInsulinLevel_)*(bgl - baseGlucoseLevel_)/(highGlucoseLevel_ - baseGlucoseLevel_);
+
+	if (insulinLevel < baseInsulinLevel_ )
+		insulinLevel = baseInsulinLevel_;
+/*****************
+
+	if( temp >= insulinLevel )
+		insulinLevel = temp;
+	else
+	{
+		if( temp <= 3* baseInsulinLevel_ ) 
+		{
+			insulinLevel -= baseInsulinLevel_/100.0;
+			if( insulinLevel < baseInsulinLevel_ )
+				insulinLevel = baseInsulinLevel_;
+		}
+		else
+			insulinLevel = temp;
+	}
+******************/
     }
     
+/*****************
+    currIndex--;
+    
+    if( currIndex < 0 )
+        currIndex = INSULIN_DELAY;
+    
+    pastInsulinLevels[currIndex] = insulinLevel;
+******************/
+
     //calculating average bgl during a day
     
     if( avgBGLOneDayCount == ONEDAY )
@@ -198,6 +238,9 @@ void Blood::processTick(){
 
     SimCtl::time_stamp();
     cout << " Blood:: glycolysis " << glycolysisPerTick << endl;
+    totalGlycolysisSoFar += glycolysisPerTick;
+    SimCtl::time_stamp();
+    cout << " Blood:: totalGlycolysis " << totalGlycolysisSoFar << endl;
     SimCtl::time_stamp();
     cout << " Blood:: insulinLevel " << insulinLevel << endl;
     //" lactate " << lactate << " glutamine " << glutamine << " alanine " << alanine << " gngsubs " << gngSubstrates << " bAA " << branchedAminoAcids << " uAA " <<  unbranchedAminoAcids << endl;
@@ -205,6 +248,7 @@ void Blood::processTick(){
 
 double Blood::consumeGNGSubstrates(double howmuch)
 {
+/*
     double total = gngSubstrates + lactate + alanine + glutamine;
     
     if( total < howmuch )
@@ -222,7 +266,15 @@ double Blood::consumeGNGSubstrates(double howmuch)
     lactate *= factor;
     alanine *= factor;
     glutamine *= factor;
-    
+*/
+    if( lactate < howmuch )
+    {
+	double total = lactate;
+        lactate = 0;
+        return total;
+    }
+
+    lactate -= howmuch;
     return howmuch;
 }
 
@@ -244,7 +296,20 @@ void Blood::setParams()
              minGlucoseLevel_= itr->second;
     
         if(itr->first.compare("baseGlucoseLevel_") == 0)
+	{
              baseGlucoseLevel_= itr->second;
+	     glucose = fluidVolume_ * baseGlucoseLevel_; 
+	}
+
+        if(itr->first.compare("baseInsulinLevel_") == 0)
+	{
+             baseInsulinLevel_= itr->second;
+	     insulinLevel = baseInsulinLevel_; 
+	}
+        if(itr->first.compare("peakInsulinLevel_") == 0)
+	{
+             peakInsulinLevel_= itr->second;
+	}
 
         if(itr->first.compare("highGlucoseLevel_") == 0)
             highGlucoseLevel_= itr->second;

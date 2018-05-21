@@ -28,8 +28,14 @@ HumanBody::HumanBody()
     blood = new Blood(this);
     kidneys = new Kidneys(this);
     
-    insulinResistance_ = 0;
-    insulinPeakLevel_ = 1.0;
+    glut4Impact_ = 1.0;
+    liverGlycogenBreakdownImpact_ = 1.0;
+    liverGlycogenSynthesisImpact_ = 1.0;
+    gngImpact_ = 1.0;
+    glycolysisMinImpact_ = 1.0;
+    glycolysisMaxImpact_ = 1.0;
+    excretionKidneysImpact_ = 1.0;
+
     bodyState = POSTABSORPTIVE_RESTING;
     bodyWeight = 65; //kg
     fatFraction_ = 0.2;
@@ -43,6 +49,23 @@ HumanBody::HumanBody()
     // energy expenditure in resting state is 1 MET
     
     exerciseOverAt = 0; // when does the current exercise event get over
+
+	insulinImpactOnGlycolysis_Mean = 0.8;
+	insulinImpactOnGlycolysis_StdDev = 0.2;
+	insulinImpactOnGNG_Mean = 0.9999;
+	insulinImpactOnGNG_StdDev = 0.0001;
+	insulinImpactGlycogenBreakdownInLiver_Mean = 0.1;
+	insulinImpactGlycogenBreakdownInLiver_StdDev = 0.01;
+	insulinImpactGlycogenSynthesisInLiver_Mean = 0.9;
+	insulinImpactGlycogenSynthesisInLiver_StdDev = 0.1;
+
+	totalGlycolysisSoFar = 0;
+    	totalOxidationSoFar = 0;
+    	totalGlycogenStorageSoFar = 0;
+    	totalGlycogenBreakdownSoFar = 0;
+    	totalGNGSoFar = 0;
+    	totalEndogeneousGlucoseReleaseSoFar = 0;
+	totalGlucoseReleaseSoFar = 0;
 }
 
 HumanBody::~HumanBody()
@@ -57,6 +80,49 @@ HumanBody::~HumanBody()
     delete blood;
     delete heart;
     delete kidneys;
+}
+
+double HumanBody::insulinImpactOnGlycolysis()
+{
+	double insulin_level = blood->insulinLevel;
+	double scale = 0.5*(1 + erf((insulin_level - insulinImpactOnGlycolysis_Mean)/(insulinImpactOnGlycolysis_StdDev*sqrt(2))));
+	return scale;
+}
+
+double HumanBody::insulinImpactOnGNG()
+{
+	//double insulin_level = blood->insulinLevel;
+	//double scale = 0.5*(1 + erf((insulin_level - insulinImpactOnGNG_Mean)/(insulinImpactOnGNG_StdDev*sqrt(2))));
+	//return (1.0 - scale);
+	return 1.0;
+}
+
+double HumanBody::insulinImpactOnGlycogenBreakdownInLiver()
+{
+	double insulin_level = blood->insulinLevel;
+	double scale = 0.5*(1 + erf((insulin_level - insulinImpactGlycogenBreakdownInLiver_Mean)/(insulinImpactGlycogenBreakdownInLiver_StdDev*sqrt(2))));
+	//cout << "Puzzle2 " << insulin_level << " " << 1.0 - scale << endl;
+	return (1.0 - scale);
+}
+
+double HumanBody::insulinImpactOnGlycogenSynthesisInLiver()
+{
+	double insulin_level = blood->insulinLevel;
+	double scale = 0.5*(1 + erf((insulin_level - insulinImpactGlycogenSynthesisInLiver_Mean)/(insulinImpactGlycogenSynthesisInLiver_StdDev*sqrt(2))));
+	return scale;
+}
+
+double HumanBody::glycolysis(double min, double max)
+{
+	double max_ = max * bodyWeight * glycolysisMaxImpact_;
+
+	double min_ = min * bodyWeight * glycolysisMinImpact_;
+
+    	if( min_ > max_ )
+        	min_ = max_;
+
+    	double toGlycolysis = min_ + insulinImpactOnGlycolysis() * ( max_ - min_);
+	return toGlycolysis;
 }
 
 // returns energy expenditure in kcal/minute
@@ -111,20 +177,66 @@ void HumanBody::processTick()
     blood->processTick();
     
     SimCtl::time_stamp();
-    cout << " bgl " << blood->getBGL() << endl;
+    cout << " HumanBody:: BGL " << blood->getBGL() << endl;
     SimCtl::time_stamp();
     cout << " weight " << bodyWeight << endl;
-    SimCtl::time_stamp();
-    cout << " TotalGlycolysis " << intestine->glycolysisPerTick + liver->glycolysisPerTick 
-	+ muscles->glycolysisPerTick + kidneys->glycolysisPerTick
-	+ blood->glycolysisPerTick << endl;
-    SimCtl::time_stamp();
-    cout << " TotalGNG " << kidneys->gngPerTick + liver->gngPerTick << endl; 
-    SimCtl::time_stamp();
-    cout << " TotalOxidation " << brain->oxidationPerTick + heart->oxidationPerTick + 
-			muscles->oxidationPerTick <<endl;
 
+    double x = intestine->glycolysisPerTick + liver->glycolysisPerTick + muscles->glycolysisPerTick 
+		+ kidneys->glycolysisPerTick + blood->glycolysisPerTick;
+    totalGlycolysisSoFar += x;
+    SimCtl::time_stamp();
+    cout << " HumanBody:: TotalGlycolysisPerTick " << x << endl;
+    SimCtl::time_stamp();
+    cout << " HumanBody:: TotalGlycolysisSoFar " << totalGlycolysisSoFar << endl;
+ 
+    x = kidneys->gngPerTick + liver->gngPerTick; 
+    totalGNGSoFar += x;
+    SimCtl::time_stamp();
+    cout << " HumanBody:: TotalGNGPerTick " << x << endl;
+    SimCtl::time_stamp();
+    cout << " HumanBody:: TotalGNGSoFar " << totalGNGSoFar << endl;
 
+    x = brain->oxidationPerTick + heart->oxidationPerTick + muscles->oxidationPerTick;
+    totalOxidationSoFar += x;
+    SimCtl::time_stamp();
+    cout << " HumanBody:: TotalOxidationPerTick " << x << endl;
+    SimCtl::time_stamp();
+    cout << " HumanBody:: TotalOxidationSoFar " << totalOxidationSoFar << endl;
+
+    SimCtl::time_stamp();
+    cout << " HumanBody:: UseOfGlucoseOutsideLiverKidneysMuscles " << blood->glycolysisPerTick + 
+		brain->oxidationPerTick + 
+		heart->oxidationPerTick + 
+		intestine->glycolysisPerTick << endl;
+		
+    x = liver->toGlycogenPerTick + muscles->glycogenSynthesizedPerTick;
+    totalGlycogenStorageSoFar += x;
+    SimCtl::time_stamp();
+    cout << " HumanBody:: TotalGlycogenStoragePerTick " << x << endl;
+    SimCtl::time_stamp();
+    cout << " HumanBody:: TotalGlycogenStorageSoFar " << totalGlycogenStorageSoFar << endl;
+
+    x = liver->fromGlycogenPerTick + muscles->glycogenBreakdownPerTick;
+    totalGlycogenBreakdownSoFar += x;
+    SimCtl::time_stamp();
+    cout << " HumanBody:: TotalGlycogenBreakdownPerTick " << x << endl;
+    SimCtl::time_stamp();
+    cout << " HumanBody:: TotalGlycogenBreakdownSoFar " << totalGlycogenBreakdownSoFar << endl;
+
+    x = liver->fromGlycogenPerTick + kidneys->gngPerTick + liver->gngPerTick; 
+    totalEndogeneousGlucoseReleaseSoFar += x;
+    SimCtl::time_stamp();
+    cout << " HumanBody:: TotalEndogeneousGlucoseReleasePerTick " << x << endl;
+    SimCtl::time_stamp();
+    cout << " HumanBody:: TotalEndogeneousGlucoseReleaseSoFar " << totalEndogeneousGlucoseReleaseSoFar << endl;
+
+    x = intestine->toPortalVeinPerTick + liver->fromGlycogenPerTick + kidneys->gngPerTick + liver->gngPerTick; 
+    totalGlucoseReleaseSoFar += x;
+    SimCtl::time_stamp();
+    cout << " HumanBody:: TotalGlucoseReleasePerTick " << x << endl;
+    SimCtl::time_stamp();
+    cout << " HumanBody:: TotalGlucoseReleaseSoFar " << totalGlucoseReleaseSoFar << endl;
+    
     if (bodyState == FED_EXERCISING)
     {
         if( SimCtl::ticks == exerciseOverAt )
@@ -151,6 +263,26 @@ void HumanBody::processTick()
         }
         //return;
     }
+
+	if( SimCtl::ticks == 600 )
+	{
+		tempGNG = totalGNGSoFar;
+        	tempGlycolysis = totalGlycolysisSoFar;
+        	tempOxidation = totalOxidationSoFar;
+        	tempExcretion = kidneys->totalExcretion;
+        	tempGlycogenStorage = totalGlycogenStorageSoFar;
+        	tempGlycogenBreakdown = totalGlycogenBreakdownSoFar;
+	}
+	if( SimCtl::ticks == 960 )
+	{
+		cout << "Simulation Results:: GNG " << totalGNGSoFar - tempGNG
+		<< " glycolysis " << totalGlycolysisSoFar - tempGlycolysis
+        	<< " oxidation " << totalOxidationSoFar - tempOxidation
+        	<< " excretion " << kidneys->totalExcretion - tempExcretion
+        	<< " glycogen storage " << totalGlycogenStorageSoFar - tempGlycogenStorage
+        	<< " glycogen breakdown " << totalGlycogenBreakdownSoFar - tempGlycogenBreakdown
+		<< endl;
+	}
 }
 
 void HumanBody::setParams()
@@ -167,17 +299,69 @@ void HumanBody::setParams()
     for( ParamSet::iterator itr = metabolicParameters[bodyState][HUMAN_BODY].begin();
         itr != metabolicParameters[bodyState][HUMAN_BODY].end(); itr++)
     {
-        if(itr->first.compare("insulinResistance_") == 0)
+        if(itr->first.compare("glut4Impact_") == 0)
         {
-            insulinResistance_ = itr->second;
+            glut4Impact_ = itr->second;
         }
-        if(itr->first.compare("insulinPeakLevel_") == 0)
+        if(itr->first.compare("glycolysisMinImpact_") == 0)
         {
-            insulinPeakLevel_ = itr->second;
+            glycolysisMinImpact_ = itr->second;
+        }
+        if(itr->first.compare("glycolysisMaxImpact_") == 0)
+        {
+            glycolysisMaxImpact_ = itr->second;
+        }
+        if(itr->first.compare("excretionKidneysImpact_") == 0)
+        {
+            excretionKidneysImpact_ = itr->second;
+        }
+        if(itr->first.compare("liverGlycogenBreakdownImpact_") == 0)
+        {
+            liverGlycogenBreakdownImpact_ = itr->second;
+        }
+        if(itr->first.compare("liverGlycogenSynthesisImpact_") == 0)
+        {
+            liverGlycogenSynthesisImpact_ = itr->second;
+        }
+        if(itr->first.compare("gngImpact_") == 0)
+        {
+            gngImpact_ = itr->second;
         }
         if(itr->first.compare("bodyWeight_") == 0)
         {
             bodyWeight = itr->second;
+        }
+        if(itr->first.compare("insulinImpactOnGlycolysis_Mean") == 0)
+        {
+            insulinImpactOnGlycolysis_Mean = itr->second;
+        }
+        if(itr->first.compare("insulinImpactOnGlycolysis_StdDev") == 0)
+        {
+            insulinImpactOnGlycolysis_StdDev = itr->second;
+        }
+        if(itr->first.compare("insulinImpactOnGNG_Mean") == 0)
+        {
+            insulinImpactOnGNG_Mean = itr->second;
+        }
+        if(itr->first.compare("insulinImpactOnGNG_StdDev") == 0)
+        {
+            insulinImpactOnGNG_StdDev = itr->second;
+        }
+        if(itr->first.compare("insulinImpactGlycogenBreakdownInLiver_Mean") == 0)
+        {
+            insulinImpactGlycogenBreakdownInLiver_Mean = itr->second;
+        }
+        if(itr->first.compare("insulinImpactGlycogenBreakdownInLiver_StdDev") == 0)
+        {
+            insulinImpactGlycogenBreakdownInLiver_StdDev = itr->second;
+        }
+        if(itr->first.compare("insulinImpactGlycogenSynthesisInLiver_Mean") == 0)
+        {
+            insulinImpactGlycogenSynthesisInLiver_Mean = itr->second;
+        }
+        if(itr->first.compare("insulinImpactGlycogenSynthesisInLiver_StdDev") == 0)
+        {
+            insulinImpactGlycogenSynthesisInLiver_StdDev = itr->second;
         }
     }
     

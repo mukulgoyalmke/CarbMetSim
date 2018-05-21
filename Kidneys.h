@@ -7,18 +7,15 @@ class Kidneys
 {
     friend class HumanBody;
 
-    double glucose;
-    double fluidVolume_;
-    double Glut2VMAX_; // mg per kg per minute
-    double Glut2Km_;
-    double Glut1Rate_;
-    
     double glycolysisMin_;
     double glycolysisMax_;
     
-    double gluconeogenesisRate_; // mg per kg per minute
-    double gngFromLactateRate_;
-    
+    // mg per kg per minute
+    double gngFromLactate_;
+    double gngFromGlycerol_;
+    double gngFromGlutamine_;
+    double gngFromAlanine_;
+
     double glutamineConsumed_;
     
     double reabsorptionThreshold_;
@@ -26,11 +23,12 @@ class Kidneys
 
     HumanBody* body;
     
-    double glucoseAbsorptionPerTick;
+    double absorptionPerTick;
+    double releasePerTick;
     double glycolysisPerTick;
     double gngPerTick;
     double excretionPerTick;
-
+    double totalExcretion;
 public:
     
     Kidneys(HumanBody* myBody);

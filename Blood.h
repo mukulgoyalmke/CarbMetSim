@@ -8,6 +8,8 @@
 #define MAXAGE 120
 // minutes in 120 days
 
+//#define INSULIN_DELAY 15
+
 #define HUNDREDDAYS 100
 // minutes in 100 days
 
@@ -33,20 +35,25 @@ class Blood
     void updateRBCs();
     HumanBody* body;
 
+    double baseGlucoseLevel_;
     double highGlucoseLevel_;
     double highLactateLevel_;
+    double baseInsulinLevel_;
+    double peakInsulinLevel_;
     
     double fluidVolume_; // in deciliters
     
+    double avgBGL;
     double avgBGLOneDay;
     double avgBGLOneDaySum;
     double avgBGLOneDayCount;
-    double baseGlucoseLevel_;
     
 public:
     //All the metabolites are in units of milligrams of glucose
     double glucose; // in milligrams
     double insulinLevel;
+//    double pastInsulinLevels[INSULIN_DELAY+1];
+//    int currIndex;
     double lactate;
     double branchedAminoAcids;
 // see Table 2.2 in Frayn
@@ -55,6 +62,8 @@ public:
     double unbranchedAminoAcids;
     double gngSubstrates; // glycerol and other gng substrates (not including lactate, glutamine and alanine), all in units of glucose
     double glycolysisPerTick; // keep track of the glucose consumed via glycolysis this tick    
+    double totalGlycolysisSoFar;
+
     Blood(HumanBody* myBody);
     
     //Red Blood cells use glucose during glycolysis and produce lactate

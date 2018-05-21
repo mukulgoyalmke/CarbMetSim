@@ -22,8 +22,11 @@ class Liver
     double glycolysisMax_;
     
     double glycolysisToLactateFraction_;
-    double gluconeogenesisRate_;
-    double gngFromLactateRate_;
+
+    double gngFromLactate_;
+    double gngFromGlycerol_;
+    double gngFromGlutamine_;
+    double gngFromAlanine_;
     
     double glucoseToNEFA_;
     
