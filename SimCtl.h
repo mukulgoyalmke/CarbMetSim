@@ -68,10 +68,10 @@ public:
 class SimCtl {
 public:
     static unsigned 	ticks;
-    static std::default_random_engine & myEngine();
+    std::default_random_engine generator;
     
     PriQ  eventQ;
-    SimCtl();
+    SimCtl(string seed_string);
     inline unsigned elapsed_days();
     inline unsigned elapsed_hours();
     inline unsigned elapsed_minutes();

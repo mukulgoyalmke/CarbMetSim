@@ -6,6 +6,7 @@ class HumanBody;
 class Kidneys
 {
     friend class HumanBody;
+    friend class Liver;
 
     double glycolysisMin_;
     double glycolysisMax_;

@@ -31,6 +31,8 @@ HumanBody::HumanBody()
     glut4Impact_ = 1.0;
     liverGlycogenBreakdownImpact_ = 1.0;
     liverGlycogenSynthesisImpact_ = 1.0;
+    maxLiverGlycogenBreakdownDuringExerciseImpact_ = 1.0;
+    maxGlucoseAbsorptionInMusclesDuringExerciseImpact_ = 1.0;
     gngImpact_ = 1.0;
     glycolysisMinImpact_ = 1.0;
     glycolysisMaxImpact_ = 1.0;
@@ -44,6 +46,8 @@ HumanBody::HumanBody()
     
     currExercise = 0;
     
+    vo2Max = 0;
+
     // current energy expenditure in kcal/minute per kg of body weight
     currEnergyExpenditure = 1.0/60.0;
     // energy expenditure in resting state is 1 MET
@@ -101,7 +105,7 @@ double HumanBody::insulinImpactOnGlycogenBreakdownInLiver()
 {
 	double insulin_level = blood->insulinLevel;
 	double scale = 0.5*(1 + erf((insulin_level - insulinImpactGlycogenBreakdownInLiver_Mean)/(insulinImpactGlycogenBreakdownInLiver_StdDev*sqrt(2))));
-	//cout << "Puzzle2 " << insulin_level << " " << 1.0 - scale << endl;
+	//cout << " insulin level " << insulin_level << endl;
 	return (1.0 - scale);
 }
 
@@ -159,6 +163,13 @@ void HumanBody::stomachEmpty()
     }
 }
 
+double HumanBody::getGlucoseNeedsOutsideMuscles()
+{
+    double x = intestine->glycolysisPerTick + liver->glycolysisPerTick + kidneys->glycolysisPerTick + blood->glycolysisPerTick;
+    x += brain->oxidationPerTick + heart->oxidationPerTick;
+    return x;
+}
+
 void HumanBody::processTick()
 {
     //Gerich: In terms of whole-body glucose economy, normally approximately 45% of ingested glucose is thought to be
@@ -176,6 +187,8 @@ void HumanBody::processTick()
     kidneys->processTick();
     blood->processTick();
     
+    double currBGL = blood->getBGL();
+
     SimCtl::time_stamp();
     cout << " HumanBody:: BGL " << blood->getBGL() << endl;
     SimCtl::time_stamp();
@@ -184,13 +197,15 @@ void HumanBody::processTick()
     double x = intestine->glycolysisPerTick + liver->glycolysisPerTick + muscles->glycolysisPerTick 
 		+ kidneys->glycolysisPerTick + blood->glycolysisPerTick;
     totalGlycolysisSoFar += x;
+
     SimCtl::time_stamp();
     cout << " HumanBody:: TotalGlycolysisPerTick " << x << endl;
     SimCtl::time_stamp();
     cout << " HumanBody:: TotalGlycolysisSoFar " << totalGlycolysisSoFar << endl;
- 
+
     x = kidneys->gngPerTick + liver->gngPerTick; 
     totalGNGSoFar += x;
+
     SimCtl::time_stamp();
     cout << " HumanBody:: TotalGNGPerTick " << x << endl;
     SimCtl::time_stamp();
@@ -218,6 +233,7 @@ void HumanBody::processTick()
 
     x = liver->fromGlycogenPerTick + muscles->glycogenBreakdownPerTick;
     totalGlycogenBreakdownSoFar += x;
+
     SimCtl::time_stamp();
     cout << " HumanBody:: TotalGlycogenBreakdownPerTick " << x << endl;
     SimCtl::time_stamp();
@@ -272,16 +288,28 @@ void HumanBody::processTick()
         	tempExcretion = kidneys->totalExcretion;
         	tempGlycogenStorage = totalGlycogenStorageSoFar;
         	tempGlycogenBreakdown = totalGlycogenBreakdownSoFar;
+
+		baseBGL = currBGL;
+		peakBGL = currBGL;
 	}
+
+	if( SimCtl::ticks > 600 )
+	{
+		if( peakBGL < currBGL )
+			peakBGL = currBGL;
+		//cout << peakBGL << endl;
+	}
+
 	if( SimCtl::ticks == 960 )
 	{
 		cout << "Simulation Results:: GNG " << totalGNGSoFar - tempGNG
-		<< " glycolysis " << totalGlycolysisSoFar - tempGlycolysis
-        	<< " oxidation " << totalOxidationSoFar - tempOxidation
-        	<< " excretion " << kidneys->totalExcretion - tempExcretion
-        	<< " glycogen storage " << totalGlycogenStorageSoFar - tempGlycogenStorage
-        	<< " glycogen breakdown " << totalGlycogenBreakdownSoFar - tempGlycogenBreakdown
-		<< endl;
+		<< " glycolysis " << totalGlycolysisSoFar - tempGlycolysis 
+        	<< " oxidation " << totalOxidationSoFar - tempOxidation 
+        	<< " excretion " << kidneys->totalExcretion - tempExcretion 
+        	<< " glycogenStorage " << totalGlycogenStorageSoFar - tempGlycogenStorage 
+        	<< " glycogenBreakdown " << totalGlycogenBreakdownSoFar - tempGlycogenBreakdown 
+		<< " baseBGL " << baseBGL 
+		<< " peakBGL " << peakBGL << endl;
 	}
 }
 
@@ -299,6 +327,18 @@ void HumanBody::setParams()
     for( ParamSet::iterator itr = metabolicParameters[bodyState][HUMAN_BODY].begin();
         itr != metabolicParameters[bodyState][HUMAN_BODY].end(); itr++)
     {
+        if(itr->first.compare("age_") == 0)
+        {
+            age = itr->second;
+        }
+        if(itr->first.compare("gender_") == 0)
+        {
+            gender = itr->second;
+        }
+        if(itr->first.compare("fitnessLevel_") == 0)
+        {
+            fitnessLevel = itr->second;
+        }
         if(itr->first.compare("glut4Impact_") == 0)
         {
             glut4Impact_ = itr->second;
@@ -322,6 +362,14 @@ void HumanBody::setParams()
         if(itr->first.compare("liverGlycogenSynthesisImpact_") == 0)
         {
             liverGlycogenSynthesisImpact_ = itr->second;
+        }
+        if(itr->first.compare("maxLiverGlycogenBreakdownDuringExerciseImpact_") == 0)
+        {
+		maxLiverGlycogenBreakdownDuringExerciseImpact_ = itr->second;
+        }
+        if(itr->first.compare("maxGlucoseAbsorptionInMusclesDuringExerciseImpact_") == 0)
+        {
+    		maxGlucoseAbsorptionInMusclesDuringExerciseImpact_ = itr->second;
         }
         if(itr->first.compare("gngImpact_") == 0)
         {
@@ -365,6 +413,8 @@ void HumanBody::setParams()
         }
     }
     
+    setVO2Max();
+
     stomach->setParams();
     intestine->setParams();
     portalVein->setParams();
@@ -375,6 +425,247 @@ void HumanBody::setParams()
     muscles->setParams();
     blood->setParams();
     kidneys->setParams();
+}
+
+void HumanBody::setVO2Max()
+{
+	if( gender != 0 && gender != 1 )
+	{
+		cout << "Invalid gender value" << endl;
+		exit(-1);
+	}
+
+	if( gender == 0 ) // male
+	{
+		if( age < 20 )
+		{
+			cout << "Age below 20 not supported." << endl;
+			exit(-1);
+		}
+		else if( age < 30 )
+		{
+			if( fitnessLevel <= 5 )
+				vo2Max = 29.0; // mLO2 per kg per min
+			else if( fitnessLevel <= 10 )
+				vo2Max = 32.1;
+			else if( fitnessLevel <= 25 )
+				vo2Max = 40.1;
+			else if( fitnessLevel <= 50 )
+				vo2Max = 48.0;
+			else if( fitnessLevel <= 75 )
+				vo2Max = 55.2;
+			else if( fitnessLevel <= 90 )
+				vo2Max = 61.8;
+			else
+				vo2Max = 66.3;
+		}
+		else if( age < 40 )
+		{
+			if( fitnessLevel <= 5 )
+				vo2Max = 27.2; // mLO2 per kg per min
+			else if( fitnessLevel <= 10 )
+				vo2Max = 30.2;
+			else if( fitnessLevel <= 25 )
+				vo2Max = 35.9;
+			else if( fitnessLevel <= 50 )
+				vo2Max = 42.4;
+			else if( fitnessLevel <= 75 )
+				vo2Max = 49.2;
+			else if( fitnessLevel <= 90 )
+				vo2Max = 56.5;
+			else
+				vo2Max = 59.8;
+		}
+		else if( age < 50 )
+		{
+			if( fitnessLevel <= 5 )
+				vo2Max = 24.2; // mLO2 per kg per min
+			else if( fitnessLevel <= 10 )
+				vo2Max = 26.8;
+			else if( fitnessLevel <= 25 )
+				vo2Max = 31.9;
+			else if( fitnessLevel <= 50 )
+				vo2Max = 37.8;
+			else if( fitnessLevel <= 75 )
+				vo2Max = 45.0;
+			else if( fitnessLevel <= 90 )
+				vo2Max = 52.1;
+			else
+				vo2Max = 55.6;
+		}
+		else if( age < 60 )
+		{
+			if( fitnessLevel <= 5 )
+				vo2Max = 20.9; // mLO2 per kg per min
+			else if( fitnessLevel <= 10 )
+				vo2Max = 22.8;
+			else if( fitnessLevel <= 25 )
+				vo2Max = 27.1;
+			else if( fitnessLevel <= 50 )
+				vo2Max = 32.6;
+			else if( fitnessLevel <= 75 )
+				vo2Max = 39.7;
+			else if( fitnessLevel <= 90 )
+				vo2Max = 45.6;
+			else
+				vo2Max = 50.7;
+		}
+		else if( age < 70 )
+		{
+			if( fitnessLevel <= 5 )
+				vo2Max = 17.4; // mLO2 per kg per min
+			else if( fitnessLevel <= 10 )
+				vo2Max = 19.8;
+			else if( fitnessLevel <= 25 )
+				vo2Max = 23.7;
+			else if( fitnessLevel <= 50 )
+				vo2Max = 28.2;
+			else if( fitnessLevel <= 75 )
+				vo2Max = 34.5;
+			else if( fitnessLevel <= 90 )
+				vo2Max = 40.3;
+			else
+				vo2Max = 43.0;
+		}
+		else if( age < 80 )
+		{
+			if( fitnessLevel <= 5 )
+				vo2Max = 16.3; // mLO2 per kg per min
+			else if( fitnessLevel <= 10 )
+				vo2Max = 17.1;
+			else if( fitnessLevel <= 25 )
+				vo2Max = 20.4;
+			else if( fitnessLevel <= 50 )
+				vo2Max = 24.4;
+			else if( fitnessLevel <= 75 )
+				vo2Max = 30.4;
+			else if( fitnessLevel <= 90 )
+				vo2Max = 36.6;
+			else
+				vo2Max = 39.7;
+		}
+		else
+		{
+			cout << "Age 80 and above not supported." << endl;
+			exit(-1);
+		}
+	}
+
+	if( gender == 1 ) // female
+	{
+		if( age < 20 )
+		{
+			cout << "Age below 20 not supported." << endl;
+			exit(-1);
+		}
+		else if( age < 30 )
+		{
+			if( fitnessLevel <= 5 )
+				vo2Max = 21.7; // mLO2 per kg per min
+			else if( fitnessLevel <= 10 )
+				vo2Max = 23.9;
+			else if( fitnessLevel <= 25 )
+				vo2Max = 30.5;
+			else if( fitnessLevel <= 50 )
+				vo2Max = 37.6;
+			else if( fitnessLevel <= 75 )
+				vo2Max = 44.7;
+			else if( fitnessLevel <= 90 )
+				vo2Max = 51.3;
+			else
+				vo2Max = 56.0;
+		}
+		else if( age < 40 )
+		{
+			if( fitnessLevel <= 5 )
+				vo2Max = 19.0; // mLO2 per kg per min
+			else if( fitnessLevel <= 10 )
+				vo2Max = 20.9;
+			else if( fitnessLevel <= 25 )
+				vo2Max = 25.3;
+			else if( fitnessLevel <= 50 )
+				vo2Max = 30.2;
+			else if( fitnessLevel <= 75 )
+				vo2Max = 36.1;
+			else if( fitnessLevel <= 90 )
+				vo2Max = 41.4;
+			else
+				vo2Max = 45.8;
+		}
+		else if( age < 50 )
+		{
+			if( fitnessLevel <= 5 )
+				vo2Max = 17.0; // mLO2 per kg per min
+			else if( fitnessLevel <= 10 )
+				vo2Max = 18.8;
+			else if( fitnessLevel <= 25 )
+				vo2Max = 22.1;
+			else if( fitnessLevel <= 50 )
+				vo2Max = 26.7;
+			else if( fitnessLevel <= 75 )
+				vo2Max = 32.4;
+			else if( fitnessLevel <= 90 )
+				vo2Max = 38.4;
+			else
+				vo2Max = 41.7;
+		}
+		else if( age < 60 )
+		{
+			if( fitnessLevel <= 5 )
+				vo2Max = 16.0; // mLO2 per kg per min
+			else if( fitnessLevel <= 10 )
+				vo2Max = 17.3;
+			else if( fitnessLevel <= 25 )
+				vo2Max = 19.9;
+			else if( fitnessLevel <= 50 )
+				vo2Max = 23.4;
+			else if( fitnessLevel <= 75 )
+				vo2Max = 27.6;
+			else if( fitnessLevel <= 90 )
+				vo2Max = 32.0;
+			else
+				vo2Max = 35.9;
+		}
+		else if( age < 70 )
+		{
+			if( fitnessLevel <= 5 )
+				vo2Max = 13.4; // mLO2 per kg per min
+			else if( fitnessLevel <= 10 )
+				vo2Max = 14.6;
+			else if( fitnessLevel <= 25 )
+				vo2Max = 17.2;
+			else if( fitnessLevel <= 50 )
+				vo2Max = 20.0;
+			else if( fitnessLevel <= 75 )
+				vo2Max = 23.8;
+			else if( fitnessLevel <= 90 )
+				vo2Max = 27.0;
+			else
+				vo2Max = 29.4;
+		}
+		else if( age < 80 )
+		{
+			if( fitnessLevel <= 5 )
+				vo2Max = 13.1; // mLO2 per kg per min
+			else if( fitnessLevel <= 10 )
+				vo2Max = 13.6;
+			else if( fitnessLevel <= 25 )
+				vo2Max = 15.6;
+			else if( fitnessLevel <= 50 )
+				vo2Max = 18.3;
+			else if( fitnessLevel <= 75 )
+				vo2Max = 20.8;
+			else if( fitnessLevel <= 90 )
+				vo2Max = 23.1;
+			else
+				vo2Max = 24.1;
+		}
+		else
+		{
+			cout << "Age 80 and above not supported." << endl;
+			exit(-1);
+		}
+	}
 }
 
 void HumanBody::processFoodEvent(unsigned foodID, unsigned howmuch)
@@ -423,6 +714,24 @@ void HumanBody::processExerciseEvent(unsigned exerciseID, unsigned duration)
         exit(-1);
     }
     
+    
+    if( vo2Max == 0 )
+    {
+	cout << "vo2Max not known" << endl;
+        exit(-1);
+    }
+
+    percentVO2Max = 3.5 * (exerciseTypes[exerciseID].intensity_)/vo2Max;
+
+    SimCtl::time_stamp();
+    cout << " Starting Exercise at " << percentVO2Max << " %VO2Max" << endl;
+
+    if( percentVO2Max > 1.0 )
+    {
+	cout << "Exercise intensity beyond the capacity of the user" << endl;
+	exit(-1);
+    }
+
     currExercise = exerciseID;
     currEnergyExpenditure = (exerciseTypes[exerciseID].intensity_)/60.0;
     // intensity is in METs, where one MET is 1kcal/(kg.hr)
@@ -446,6 +755,8 @@ void HumanBody::processExerciseEvent(unsigned exerciseID, unsigned duration)
         //cout << "Entering State " << bodyState << endl;
         return;
     }
+        //SimCtl::time_stamp();
+        //cout << "Firing Exercise Event " << exerciseID << " for " << duration << " minutes" << endl;
 }
 
 void  HumanBody::readExerciseFile(const char * file)

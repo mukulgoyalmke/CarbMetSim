@@ -51,6 +51,8 @@ public:
     double glut4Impact_;
     double liverGlycogenBreakdownImpact_;
     double liverGlycogenSynthesisImpact_;
+    double maxLiverGlycogenBreakdownDuringExerciseImpact_;
+    double maxGlucoseAbsorptionInMusclesDuringExerciseImpact_;
     double gngImpact_;
     double glycolysisMinImpact_;
     double glycolysisMaxImpact_;
@@ -64,6 +66,13 @@ public:
 	double insulinImpactOnGNG_StdDev;
 	double insulinImpactGlycogenBreakdownInLiver_StdDev;
 	double insulinImpactGlycogenSynthesisInLiver_StdDev;
+
+    void setVO2Max();
+    int age; // in years
+    int gender; // 0 male, 1 female
+    int fitnessLevel; // between 0 and 100
+    double vo2Max; // estimated from age, gender and fitnessLevel
+    double percentVO2Max; // for the current exercise 
 
     double bodyWeight;
     double fatFraction_;
@@ -94,6 +103,7 @@ public:
     void stomachEmpty();
     bool isExercising();
     double currentEnergyExpenditure();
+    double getGlucoseNeedsOutsideMuscles();
 
     double totalGlycolysisSoFar;
     double totalOxidationSoFar;
@@ -117,6 +127,8 @@ public:
 	double tempGlycogenStorage;
 	double tempGlycogenBreakdown;
 
+	double baseBGL; 
+	double peakBGL;
 };
 
 

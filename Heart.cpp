@@ -3,6 +3,8 @@
 #include <stdlib.h>
 #include <iostream>
 
+extern SimCtl* sim;
+
 Heart::Heart(HumanBody* mybody)
 {
     body = mybody;
@@ -23,7 +25,7 @@ void Heart::processTick()
     static std::poisson_distribution<int> basalGlucoseAbsorbed__(1000.0*basalGlucoseAbsorbed_);
     //static std::poisson_distribution<int> lactateOxidized__(1000.0*lactateOxidized_);
     
-    double basalAbsorption = (double)(basalGlucoseAbsorbed__(SimCtl::myEngine()))/1000.0;
+    double basalAbsorption = (double)(basalGlucoseAbsorbed__(sim->generator))/1000.0;
     
     body->blood->removeGlucose(basalAbsorption);
     
@@ -40,10 +42,10 @@ void Heart::processTick()
     oxidationPerTick += g;
    ***************/
 
-    SimCtl::time_stamp();
-    cout << " Heart:: Oxidation " << oxidationPerTick << endl;
+    //SimCtl::time_stamp();
+    //cout << " Heart:: Oxidation " << oxidationPerTick << endl;
 /*
-    double lactateOxidized = (double)(lactateOxidized__(SimCtl::myEngine()))/1000.0;
+    double lactateOxidized = (double)(lactateOxidized__(sim->generator))/1000.0;
     if( body->blood->lactate >= lactateOxidized )
     {
         body->blood->lactate -= lactateOxidized;

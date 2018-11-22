@@ -12,6 +12,7 @@ class Muscles
     double volume_; //in dl
     
     double basalGlucoseAbsorbed_;
+    double maxGlucoseAbsorptionDuringExercise_;
     double glucoseOxidationFraction_;
     double baaToGlutamine_;
     double glycolysisMin_;

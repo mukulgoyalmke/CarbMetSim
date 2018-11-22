@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include "Blood.h"
 #include "HumanBody.h"
+#include "Kidneys.h"
 
 class Liver
 {
@@ -17,6 +18,7 @@ class Liver
     double glycogenSynth_Insulin_StdDev_;
 
     double glycogenToGlucose_; // in units of mg of glucose per kg per minute
+    double maxGlycogenToGlucoseDuringExercise_; // in units of mg of glucose per kg per minute
     
     double glycolysisMin_; // mg per kg per minute
     double glycolysisMax_;

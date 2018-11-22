@@ -6,6 +6,8 @@
 #include "Blood.h"
 #include "HumanBody.h"
 
+extern SimCtl* sim;
+
 void Stomach::processTick()
 {
 	//send some chyme to the intestine.
@@ -41,7 +43,7 @@ void Stomach::processTick()
 
     	static std::poisson_distribution<int> geConstant__ (1000.0*geConstant_);
 
-        double geConstant = (double)(geConstant__(SimCtl::myEngine()))/1000.0;
+        double geConstant = (double)(geConstant__(sim->generator))/1000.0;
 	double totalFood = RAG+SAG+protein+fat;
 	// calorific density of the food in stomach
 	double calorificDensity = (4.0*(RAG+SAG+protein) + 9.0*fat)/totalFood; 

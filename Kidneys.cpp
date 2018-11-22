@@ -3,6 +3,8 @@
 #include "Blood.h"
 #include "Liver.h"
 
+extern SimCtl* sim;
+
 Kidneys::Kidneys(HumanBody* myBody)
 {
     body = myBody;
@@ -46,7 +48,7 @@ void Kidneys::processTick()
     //Gerich says:
     //The metabolic fate of glucose is different in different regions of the kidney. Because of its low oxygen tension, and low levels of oxidative enzymes, the renal medulla is an obligate user of glucose for its energy requirement and does so anaerobically. Consequently, lactate is the main metabolic end product of glucose taken up in the renal medulla, not carbon dioxide (CO2) and water. In contrast, the renal cortex has little  glucose phosphorylating capacity but a high level of oxidative enzymes. Consequently, this part of the kidney does not take up and use very much glucose, with oxidation of FFAs acting as the main source of energy. A major energy-requiring process in the kidney is the reabsorption of glucose from glomerular filtrate in the proximal convoluted tubule.
    
-    x = (double)(glycolysisMin__(SimCtl::myEngine()))/1000.0;
+    x = (double)(glycolysisMin__(sim->generator))/1000.0;
     double toGlycolysis = body->glycolysis(x,glycolysisMax_);
     
     body->blood->removeGlucose(toGlycolysis);
@@ -58,9 +60,9 @@ void Kidneys::processTick()
 
     double scale = body->insulinImpactOnGNG();
     // from non-lactate sources
-    double gng =  (double)(gngFromGlycerol__(SimCtl::myEngine()))
-                + (double)(gngFromGlutamine__(SimCtl::myEngine()))
-                + (double)(gngFromAlanine__(SimCtl::myEngine()));
+    double gng =  (double)(gngFromGlycerol__(sim->generator))
+                + (double)(gngFromGlutamine__(sim->generator))
+                + (double)(gngFromAlanine__(sim->generator));
     gng *= scale * (body->gngImpact_) * (body->bodyWeight)/1000.0;
     if( gng > 0 )
     {
@@ -68,7 +70,7 @@ void Kidneys::processTick()
     }
 
     // from lactate
-    gng = (double)(gngFromLactate__(SimCtl::myEngine()));
+    gng = (double)(gngFromLactate__(sim->generator));
     gng *= scale * (body->gngImpact_) * (body->bodyWeight)/1000.0;
 	//cout << "Puzzle2 " << gng << " ";
     gng = body->blood->consumeGNGSubstrates(gng);
@@ -81,7 +83,7 @@ void Kidneys::processTick()
     body->blood->addGlucose(gngPerTick);
     releasePerTick = gngPerTick;
 /************************************
-    x = (double)(gngFromLactateRate__(SimCtl::myEngine()));
+    x = (double)(gngFromLactateRate__(sim->generator));
     x *= body->bodyWeight/1000.0;
     x = body->blood->gngFromHighLactate(x);
     if( x > 0 )
@@ -111,14 +113,14 @@ void Kidneys::processTick()
     excretionPerTick = 0;
     if( bgl > reabsorptionThreshold_ )
     {
-        x = (double)(glucoseExcretionRate__(SimCtl::myEngine()));
+        x = (double)(glucoseExcretionRate__(sim->generator));
 	x = x/1000.0;
         excretionPerTick = (body->excretionKidneysImpact_)*x*(bgl-reabsorptionThreshold_);
         body->blood->removeGlucose(excretionPerTick);
     }
     
 	totalExcretion += excretionPerTick;
-
+/*
     SimCtl::time_stamp();
     cout << " Kidneys:: Absorption " << absorptionPerTick << endl;
     SimCtl::time_stamp();
@@ -127,6 +129,7 @@ void Kidneys::processTick()
     cout << " Kidneys:: Glycolysis " << glycolysisPerTick << endl;
     SimCtl::time_stamp();
     cout << " Kidneys:: GNG " << gngPerTick << endl;
+*/
     SimCtl::time_stamp();
     cout << " Kidneys:: Excretion " << excretionPerTick << endl;
     SimCtl::time_stamp();

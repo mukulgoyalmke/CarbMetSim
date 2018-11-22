@@ -8,6 +8,8 @@
 #include "SimCtl.h"
 #include "HumanBody.h"
 #include <iomanip>
+#include <fcntl.h>
+#include <sys/stat.h>
 
 
 using namespace std;
@@ -17,14 +19,6 @@ using namespace std;
 SimCtl* sim;
 HumanBody	*body;
 unsigned SimCtl::ticks=0;
-
-std::default_random_engine & SimCtl::myEngine()
-{
-    //static unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
-    //static std::default_random_engine generator(seed);
-    static std::default_random_engine generator(1);
-    return generator;
-}
 
 void SimCtl::time_stamp()
 {
@@ -159,7 +153,7 @@ void  SimCtl::readEvents(string file)
             unsigned minutes = (unsigned)atoi(tok);
             unsigned fireTime = day* TICKS_PER_DAY + hour* TICKS_PER_HOUR + minutes;
 
-            cout<< day<<":"<<hour<<":"<<minutes<< " " << type << " " << subtype << " " << howmuch << endl;
+            //cout<< day<<":"<<hour<<":"<<minutes<< " " << type << " " << subtype << " " << howmuch << endl;
             
             
             addEvent(fireTime, type, subtype, howmuch);
@@ -176,8 +170,13 @@ void  SimCtl::readEvents(string file)
     }
 }
 
-SimCtl::SimCtl(){
+SimCtl::SimCtl(string seed_string)
+:generator(1)
+{
     ticks = 0;
+
+    std::seed_seq seed (seed_string.begin(),seed_string.end());
+    generator.seed (seed);
 }
 
 
@@ -189,12 +188,28 @@ int main(int argc, char *argv[])
     cout << std::fixed;
     cout << std::setprecision(3);
     
-    if (argc != 5) {
-        cout << "Syntax: carbmetsim foodsfile exercisefile metabolicratesfile eventsfile\n";
+    if (argc != 7) {
+        cout << "Syntax: carbmetsim foodsfile exercisefile metabolicratesfile eventsfile seedstring outputfile\n";
         exit(1);
     }
+
+    // redirect stdout
+    int fd = open(argv[6], O_WRONLY | O_CREAT | O_APPEND, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
+    if (fd == -1) {
+       cout << "Failed to open " << argv[6] << endl;
+       return 1;
+    }
+    if (dup2(fd, STDOUT_FILENO) == -1) {
+      cout << "Failed to redirect standard output" << endl;
+      return 1;
+   }
+   if (close(fd) == -1) {
+      cout << "Failed to close the file " << argv[6] << endl;
+      return 1;
+   }
+
     // Create simulation controller
-    sim= new SimCtl();
+    sim= new SimCtl(argv[5]);
     body = new HumanBody();
     body->readFoodFile(argv[1]);
     body->readExerciseFile(argv[2]);

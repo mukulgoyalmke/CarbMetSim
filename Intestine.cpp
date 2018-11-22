@@ -6,6 +6,8 @@
 #include "HumanBody.h"
 #include "PortalVein.h"
 
+extern SimCtl* sim;
+
 void Intestine::addChyme(double rag, double sag, double proteinInChyme, double fat)
 {
 	Chyme c;
@@ -98,8 +100,10 @@ void Intestine::processTick()
     	 absorbGlucose();
     	 absorbAminoAcids();
 
+/*
 	SimCtl::time_stamp();
         cout << " Intestine:: Glycolysis " << glycolysisPerTick << endl;
+*/
 	SimCtl::time_stamp();
         cout << " Intestine:: ToPortalVein " << toPortalVeinPerTick << endl;
 }
@@ -242,7 +246,7 @@ void Intestine::absorbGlucose()
         }
     
         // Active transport first
-        activeAbsorption = (double)(basalAbsorption__(SimCtl::myEngine()))/1000.0;
+        activeAbsorption = (double)(basalAbsorption__(sim->generator))/1000.0;
         
         if( activeAbsorption >= glucoseInLumen )
         {
@@ -264,7 +268,7 @@ void Intestine::absorbGlucose()
             {
                 // glucose concentration in lumen decides the number of GLUT2s available for transport.
                 // so, Vmax depends on glucose concentration in lumen
-                x = (double)(Glut2VMAX_In__(SimCtl::myEngine()))/1000.0;
+                x = (double)(Glut2VMAX_In__(sim->generator))/1000.0;
                 double effectiveVmax = x*glLumen/peakGlucoseConcentrationInLumen;
     
                 if (effectiveVmax > Glut2VMAX_In_)
@@ -291,7 +295,7 @@ void Intestine::absorbGlucose()
     
     if(diff > 0 )
     {
-        x = (double)(Glut2VMAX_Out__(SimCtl::myEngine()))/1000.0;
+        x = (double)(Glut2VMAX_Out__(sim->generator))/1000.0;
         toPortalVeinPerTick = x*diff/(diff + Glut2Km_Out_);
         
         if( toPortalVeinPerTick > glucoseInEnterocytes )
@@ -305,7 +309,7 @@ void Intestine::absorbGlucose()
     
     //Glycolysis. Depends on insulin level. Consumed glucose becomes lactate (Ref: Gerich).
     
-    x = (double)(glycolysisMin__(SimCtl::myEngine()))/1000.0;
+    x = (double)(glycolysisMin__(sim->generator))/1000.0;
     glycolysisPerTick = body->glycolysis(x,glycolysisMax_);
     
     if( glycolysisPerTick > glucoseInEnterocytes)
@@ -328,9 +332,8 @@ void Intestine::absorbGlucose()
     x = body->portalVein->getConcentration();
     glPortalVein = (10.0/180.1559)*x;
 
-    SimCtl::time_stamp();
-    cout << " Intestine:: glLumen: " << glLumen << " glEntero " << glEnterocytes << " glPortal " << glPortalVein << 
-	", " << x << " activeAbsorption " << activeAbsorption << " passiveAbsorption " << passiveAbsorption << endl;
+    //SimCtl::time_stamp();
+    //cout << " Intestine:: glLumen: " << glLumen << " glEntero " << glEnterocytes << " glPortal " << glPortalVein << ", " << x << " activeAbsorption " << activeAbsorption << " passiveAbsorption " << passiveAbsorption << endl;
 }
 
 //The BCAAs, leucine, isoleucine, and valine, represent 3 of the 20 amino acids that are used in the formation of proteins.
@@ -348,7 +351,7 @@ void Intestine::absorbAminoAcids()
     static std::poisson_distribution<int> aminoAcidsAbsorptionRate__(1000.0*aminoAcidsAbsorptionRate_);
     static std::poisson_distribution<int> glutamineOxidationRate__(1000.0*glutamineOxidationRate_);
     
-    double absorbedAA = (double)(aminoAcidsAbsorptionRate__(SimCtl::myEngine()))/1000.0;
+    double absorbedAA = (double)(aminoAcidsAbsorptionRate__(sim->generator))/1000.0;
     
     if( protein < absorbedAA )
     {
@@ -359,7 +362,7 @@ void Intestine::absorbAminoAcids()
     protein -= absorbedAA;
     
     //Glutamine is oxidized
-    double g = (double)(glutamineOxidationRate__(SimCtl::myEngine()))/1000.0;
+    double g = (double)(glutamineOxidationRate__(sim->generator))/1000.0;
     if( body->blood->glutamine < g )
     {
             body->blood->alanine += glutamineToAlanineFraction_*(body->blood->glutamine);

@@ -76,6 +76,7 @@ public:
     double consumeGNGSubstrates(double howmuch);
     double gngFromHighLactate(double rate_);
     double baseBGL() {return baseGlucoseLevel_;}
+    double volume() {return fluidVolume_;}
 };
 
 #endif /* defined(__HumanBody__Blood__) */

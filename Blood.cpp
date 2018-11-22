@@ -5,6 +5,8 @@
 #include "SimCtl.h"
 #include <math.h>
 
+extern SimCtl* sim;
+
 Blood::Blood(HumanBody* myBody)
 {
     body = myBody;
@@ -138,8 +140,8 @@ void Blood::updateRBCs()
         //std::cout << "bin: " << i << ", RBCs " << AgeBins[i].RBCs << ", Glycated RBCs " << AgeBins[i].glycatedRBCs << std::endl;
     }
     
-    SimCtl::time_stamp();
-    std::cout << " New HbA1c: " << currentHbA1c() << std::endl;
+    //SimCtl::time_stamp();
+    //std::cout << " New HbA1c: " << currentHbA1c() << std::endl;
 }
 
 double Blood::currentHbA1c()
@@ -172,7 +174,7 @@ void Blood::processTick(){
     //RBCs consume about 25mg of glucose every minute and convert it to lactate via glycolysis.
     //Gerich: Glycolysis. Depends on insulin level. Some of the consumed glucose becomes lactate.
     
-    x = (double)(glycolysisMin__(SimCtl::myEngine()))/1000.0;
+    x = (double)(glycolysisMin__(sim->generator))/1000.0;
     double toGlycolysis = body->glycolysis(x,glycolysisMax_);
 
     if( toGlycolysis > glucose)
@@ -229,18 +231,18 @@ void Blood::processTick(){
         avgBGLOneDaySum = 0;
         avgBGLOneDayCount = 0;
         updateRBCs();
-        SimCtl::time_stamp();
-        cout << " Blood::avgBGL " << avgBGLOneDay << endl;
+        //SimCtl::time_stamp();
+        //cout << " Blood::avgBGL " << avgBGLOneDay << endl;
     }
     
     avgBGLOneDaySum += bgl;
     avgBGLOneDayCount++;
 
-    SimCtl::time_stamp();
-    cout << " Blood:: glycolysis " << glycolysisPerTick << endl;
+    //SimCtl::time_stamp();
+    //cout << " Blood:: glycolysis " << glycolysisPerTick << endl;
     totalGlycolysisSoFar += glycolysisPerTick;
-    SimCtl::time_stamp();
-    cout << " Blood:: totalGlycolysis " << totalGlycolysisSoFar << endl;
+    //SimCtl::time_stamp();
+    //cout << " Blood:: totalGlycolysis " << totalGlycolysisSoFar << endl;
     SimCtl::time_stamp();
     cout << " Blood:: insulinLevel " << insulinLevel << endl;
     //" lactate " << lactate << " glutamine " << glutamine << " alanine " << alanine << " gngsubs " << gngSubstrates << " bAA " << branchedAminoAcids << " uAA " <<  unbranchedAminoAcids << endl;
@@ -338,7 +340,7 @@ void Blood::removeGlucose(double howmuch)
 {
     glucose -= howmuch;
     
-    //std::cout << "Glucose consumed " << howmuch << " ,glucose left " << glucose << std::endl;
+    std::cout << "Glucose consumed " << howmuch << " ,glucose left " << glucose << std::endl;
     
     if( getBGL() <= minGlucoseLevel_ )
     {

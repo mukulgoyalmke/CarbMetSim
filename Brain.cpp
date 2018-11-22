@@ -3,6 +3,7 @@
 #include "Brain.h"
 #include "Blood.h"
 
+extern SimCtl* sim;
 
 Brain::Brain(HumanBody* myBody)
 {
@@ -29,7 +30,7 @@ void Brain::processTick()
 {
     static std::poisson_distribution<int> glucoseOxidized__(1000.0*glucoseOxidized_);
     
-    double g = (double)(glucoseOxidized__(SimCtl::myEngine()))/1000.0;
+    double g = (double)(glucoseOxidized__(sim->generator))/1000.0;
     oxidationPerTick = g;
     body->blood->removeGlucose(g + glucoseToAlanine_);
     body->blood->alanine += glucoseToAlanine_;
@@ -46,8 +47,8 @@ void Brain::processTick()
         body->blood->branchedAminoAcids = 0;
     }
 
-	SimCtl::time_stamp();
-	cout << " Brain:: Oxidation " << oxidationPerTick << endl;
+	//SimCtl::time_stamp();
+	//cout << " Brain:: Oxidation " << oxidationPerTick << endl;
 }
 
 void Brain::setParams()
