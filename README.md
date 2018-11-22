@@ -15,7 +15,7 @@ The simulator is implemented in C++. A simple makefile has been provided.
 
 Run the simulator in the following manner:
 
-carbmetsim foodsfile exercisefile paramsfile eventsfile
+carbmetsim foodsfile exercisefile paramsfile eventsfile seed outputfile
 
 "foodsfile":
 --------------
@@ -102,3 +102,11 @@ Here is a sample "eventsfile":
 0:20:0 0 4 135
 
 1:6:0 2 0 0
+
+"seed":
+-----------------
+The "seed" is a string that acts as the seed for the random number generation.
+
+"outputfile":
+-----------------
+The "outputfile" is the file where the simulation output will be stored. The simulation output is appended to any existing contents of this file.
