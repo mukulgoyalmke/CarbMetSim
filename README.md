@@ -9,9 +9,6 @@ Buket Aydas (baydas@uwm.edu)
 
 Husam Ghazaleh (ghazaleh@uwm.edu)
 
-Tanawat Khunlerkit (tanawat@uwm.edu)
-
-
 Usage:
 ----------------
 The simulator is implemented in C++. A simple makefile has been provided.
