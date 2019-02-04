@@ -2,10 +2,12 @@
 #define __HumanBody__Muscles__
 
 class HumanBody;
+class Liver;
 
 class Muscles
 {
     friend class HumanBody;
+    friend class Liver;
     double glycogen;
     double glycogenMax_;
     double glucose; // mg

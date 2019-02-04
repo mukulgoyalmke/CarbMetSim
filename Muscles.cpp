@@ -69,8 +69,8 @@ void Muscles::processTick()
 
     double x; // to hold the random samples
     double currEnergyNeed = body->currentEnergyExpenditure();
-    SimCtl::time_stamp();
-    cout << "HumanBody:: Current Energy Expenditure: " << currEnergyNeed << endl;
+    //SimCtl::time_stamp();
+    //cout << "HumanBody:: Current Energy Expenditure: " << currEnergyNeed << endl;
 
     double insulin_level = body->blood->insulinLevel;
 
@@ -155,6 +155,26 @@ void Muscles::processTick()
 	    glucose += g;
         }
 
+	// glycogen synthesis
+        
+	double toGlycogen = (double)(glucoseToGlycogen__(sim->generator)) * (body->bodyWeight)/1000.0;
+   
+        if( toGlycogen > glucose )
+           toGlycogen = glucose;
+   
+    	if( toGlycogen > 0 )
+    	{
+        	glycogen += toGlycogen;
+    	}
+
+    	if( glycogen > glycogenMax_ )
+    	{
+        	toGlycogen -= glycogen - glycogenMax_;
+        	glycogen = glycogenMax_;
+    	}
+        glycogenSynthesizedPerTick = toGlycogen;
+    	glucose -= toGlycogen;
+
         // glycolysis
 
         x = (double)(glycolysisMin__(sim->generator))/1000.0;
@@ -193,26 +213,6 @@ void Muscles::processTick()
 ******************/
         }
         
-	// glycogen synthesis
-        
-	double toGlycogen = (double)(glucoseToGlycogen__(sim->generator)) * (body->bodyWeight)/1000.0;
-   
-        if( toGlycogen > glucose )
-           toGlycogen = glucose;
-   
-    	if( toGlycogen > 0 )
-    	{
-        	glycogen += toGlycogen;
-    	}
-
-    	if( glycogen > glycogenMax_ )
-    	{
-        	toGlycogen -= glycogen - glycogenMax_;
-        	glycogen = glycogenMax_;
-    	}
-        glycogenSynthesizedPerTick = toGlycogen;
-    	glucose -= toGlycogen;
-
         // oxidation
         //oxidationPerTick = 0.5*(body->blood->insulinLevel)*glucoseAbsorbedPerTick;
         oxidationPerTick = glucose;
@@ -228,7 +228,7 @@ void Muscles::processTick()
     if( glycogen < 0 )
     {
     	SimCtl::time_stamp();
-        cout << "Glycogen went negative\n";
+        cout << "Glycogen in muscles went negative\n";
         exit(-1);
     }
     
@@ -248,16 +248,16 @@ void Muscles::processTick()
     }
 */
     
-    SimCtl::time_stamp();
-    cout << " Muscles:: GlucoseAbsorbed " << glucoseAbsorbedPerTick << endl;
+    //SimCtl::time_stamp();
+    //cout << " Muscles:: GlucoseAbsorbed " << glucoseAbsorbedPerTick << endl;
 
-    SimCtl::time_stamp();
-    cout << " Muscles:: GlycogenSynthesis " << glycogenSynthesizedPerTick << endl;
-    SimCtl::time_stamp();
-    cout << " Muscles:: GlycogenBreakdown " << glycogenBreakdownPerTick << endl;
+    //SimCtl::time_stamp();
+    //cout << " Muscles:: GlycogenSynthesis " << glycogenSynthesizedPerTick << endl;
+    //SimCtl::time_stamp();
+    //cout << " Muscles:: GlycogenBreakdown " << glycogenBreakdownPerTick << endl;
 
-    SimCtl::time_stamp();
-    cout << " Muscles:: glycogen " << glycogen << endl;
+    //SimCtl::time_stamp();
+    //cout << " Muscles:: glycogen " << glycogen/1000.0 << endl;
     //SimCtl::time_stamp();
     //cout << " Muscles:: Oxidation " << oxidationPerTick << endl;
     //SimCtl::time_stamp();
@@ -265,10 +265,10 @@ void Muscles::processTick()
     //SimCtl::time_stamp();
     //cout << " Muscles:: Glycolysis " << glycolysisPerTick << endl;
 
-    SimCtl::time_stamp();
-    cout << " Muscles:: TotalGlucoseOxidized " << oxidationPerTick + glycogenOxidizedPerTick << endl;
+    //SimCtl::time_stamp();
+    //cout << " Muscles:: TotalGlucoseOxidized " << oxidationPerTick + glycogenOxidizedPerTick << endl;
 
-    totalGlucoseAbsorbed += glucoseAbsorbedPerTick;
+    //totalGlucoseAbsorbed += glucoseAbsorbedPerTick;
     //SimCtl::time_stamp();
    // cout << " Muscles:: totalGlucoseAbsorbed " << totalGlucoseAbsorbed << endl;
 }

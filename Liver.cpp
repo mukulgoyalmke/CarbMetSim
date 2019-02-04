@@ -3,6 +3,8 @@
 #include "Blood.h"
 #include "PortalVein.h"
 #include "AdiposeTissue.h"
+#include "Muscles.h"
+#include "Intestine.h"
 #include "math.h"
 
 extern SimCtl* sim;
@@ -93,9 +95,6 @@ void Liver::processTick()
     x = (double)(glucoseToGlycogen__(sim->generator));
     double toGlycogen = scale * x * (body->bodyWeight)/1000.0;
     
-    //cout << "glInLiver " << glInLiver << " baseBGL " << baseBGL << " scale "
-    //    << scale<< " toGlycogen " << toGlycogen << endl;
-
     if( toGlycogen > glucose )
         toGlycogen = glucose;
     
@@ -179,13 +178,9 @@ void Liver::processTick()
     {
 	// try to maintain glucose homeostasis.
 	fromGlycogen = body->getGlucoseNeedsOutsideMuscles();
+	fromGlycogen += body->muscles->glucoseAbsorbedPerTick;
 
-	// on average 10% of energy muscles need comes from oxidation of glucose absorbed from blood.
-        //oxidation of 1g of carbs yields 4kcal of energy
-	double currEnergyNeed = body->currentEnergyExpenditure();
-        x = (double)(rand__(sim->generator));
-        fromGlycogen += 0.1*(x/100.0)*1000.0*(currEnergyNeed)/4.0; // in milligrams
-
+	fromGlycogen -= body->intestine->toPortalVeinPerTick;
 	fromGlycogen -= gngPerTick;
 	fromGlycogen -= body->kidneys->gngPerTick;
 
@@ -195,6 +190,9 @@ void Liver::processTick()
 	double max = maxGlycogenToGlucoseDuringExercise_*(body->bodyWeight)*(body->maxLiverGlycogenBreakdownDuringExerciseImpact_); 
 	if( fromGlycogen > max )
 		fromGlycogen = max; 
+	
+	if( fromGlycogen > glycogen )
+		body->stopExercise();
     } 
     else
     {
@@ -216,6 +214,31 @@ void Liver::processTick()
     }
     fromGlycogenPerTick = fromGlycogen;
 
+    // if no glycogen is left
+
+    double bgl = body->blood->getBGL();
+
+    //SimCtl::time_stamp();
+    //cout << "howdy! bgl " << bgl << " baseBGL " << body->blood->baseBGL() << " glycogen " << glycogen << endl;
+
+    if( (bgl < body->blood->baseBGL()) && (glycogen <= 0.1) && !(body->isExercising()) )
+    {
+	// invoke GNG to produce glucose to maintain bgl at the base level
+
+	double glucoseNeeded = body->getGlucoseNeedsOutsideMuscles();
+	glucoseNeeded += body->muscles->glucoseAbsorbedPerTick;
+
+	glucoseNeeded -= body->intestine->toPortalVeinPerTick;
+	glucoseNeeded -= gngPerTick;
+	glucoseNeeded -= body->kidneys->gngPerTick;
+
+	if( glucoseNeeded > 0 )
+	{
+    		glucose += glucoseNeeded;
+    		gngPerTick += glucoseNeeded;
+	}
+    }
+
     //BUKET NEW: 93% of unbranched amino acids in portal vein are retained in Liver, because the leaked amino acids from Intestine consists of 15% branched and 85% unbranched, but after liver consumption the percentage needs to be 70% branched, 30% unbranched. To provide these percentages 93% of unbranched amino acids in portal vein are retained in liver. (From Frayn's book)
     
     body->portalVein->releaseAminoAcids();
@@ -229,7 +252,6 @@ void Liver::processTick()
     */
     
     glInLiver = glucose/fluidVolume_;
-    double bgl = body->blood->getBGL();
     
     if( glInLiver > bgl )
     {
@@ -249,22 +271,22 @@ void Liver::processTick()
 	releasePerTick = g;
     }
     
+/*
     SimCtl::time_stamp();
     cout << " Liver:: ToGlycogen " << toGlycogenPerTick << endl;
     SimCtl::time_stamp();
     cout << " Liver:: FromGlycogen " << fromGlycogenPerTick << endl;
     SimCtl::time_stamp();
-    cout << " Liver:: glycogen " << glycogen << endl;
-/*
+    cout << " Liver:: glycogen " << glycogen/1000.0 << endl;
     SimCtl::time_stamp();
     cout << " Liver:: Absorption " << absorptionPerTick << endl;
     SimCtl::time_stamp();
     cout << " Liver:: Glycolysis " << glycolysisPerTick << endl;
     SimCtl::time_stamp();
     cout << " Liver:: GNG " << gngPerTick << endl;
-*/
     SimCtl::time_stamp();
     cout << " Liver:: Release " << releasePerTick  << "mg, gl " << glucose/fluidVolume_ << endl;
+*/
 
 //glycogen " << glycogen << "mg, glucose " << glucose 
 }

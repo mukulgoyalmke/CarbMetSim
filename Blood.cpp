@@ -243,8 +243,8 @@ void Blood::processTick(){
     totalGlycolysisSoFar += glycolysisPerTick;
     //SimCtl::time_stamp();
     //cout << " Blood:: totalGlycolysis " << totalGlycolysisSoFar << endl;
-    SimCtl::time_stamp();
-    cout << " Blood:: insulinLevel " << insulinLevel << endl;
+    //SimCtl::time_stamp();
+    //cout << " Blood:: insulinLevel " << insulinLevel << endl;
     //" lactate " << lactate << " glutamine " << glutamine << " alanine " << alanine << " gngsubs " << gngSubstrates << " bAA " << branchedAminoAcids << " uAA " <<  unbranchedAminoAcids << endl;
 }
 
@@ -340,7 +340,7 @@ void Blood::removeGlucose(double howmuch)
 {
     glucose -= howmuch;
     
-    std::cout << "Glucose consumed " << howmuch << " ,glucose left " << glucose << std::endl;
+    //std::cout << "Glucose consumed " << howmuch << " ,glucose left " << glucose << std::endl;
     
     if( getBGL() <= minGlucoseLevel_ )
     {

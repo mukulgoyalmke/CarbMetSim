@@ -91,8 +91,8 @@ void Intestine::processTick()
 	totalRAGDigested += totalRAGConsumed;
 	totalSAGDigested += totalSAGConsumed;
 
-    	SimCtl::time_stamp();
-    	cout << " Intestine:: RAGConsumed " << totalRAGConsumed << " SAGConsumed " << totalSAGConsumed << endl;
+    	//SimCtl::time_stamp();
+    	//cout << " Intestine:: RAGConsumed " << totalRAGConsumed << " SAGConsumed " << totalSAGConsumed << endl;
     	//cout << " Intestine:: RAGConsumed " << totalRAGDigested << " SAGConsumed " << totalSAGDigested << " total " <<
 	//totalRAGDigested + totalSAGDigested << endl;
 
@@ -104,8 +104,8 @@ void Intestine::processTick()
 	SimCtl::time_stamp();
         cout << " Intestine:: Glycolysis " << glycolysisPerTick << endl;
 */
-	SimCtl::time_stamp();
-        cout << " Intestine:: ToPortalVein " << toPortalVeinPerTick << endl;
+	//SimCtl::time_stamp();
+        //cout << " Intestine:: ToPortalVein " << toPortalVeinPerTick << endl;
 }
 
 void Intestine::setParams()

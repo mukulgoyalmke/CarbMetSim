@@ -119,8 +119,8 @@ void Kidneys::processTick()
         body->blood->removeGlucose(excretionPerTick);
     }
     
-	totalExcretion += excretionPerTick;
 /*
+    totalExcretion += excretionPerTick;
     SimCtl::time_stamp();
     cout << " Kidneys:: Absorption " << absorptionPerTick << endl;
     SimCtl::time_stamp();
@@ -129,11 +129,11 @@ void Kidneys::processTick()
     cout << " Kidneys:: Glycolysis " << glycolysisPerTick << endl;
     SimCtl::time_stamp();
     cout << " Kidneys:: GNG " << gngPerTick << endl;
-*/
-    SimCtl::time_stamp();
-    cout << " Kidneys:: Excretion " << excretionPerTick << endl;
     SimCtl::time_stamp();
     cout << " Kidneys:: TotalExcretion " << totalExcretion << endl;
+*/
+    //SimCtl::time_stamp();
+    //cout << " Kidneys:: Excretion " << excretionPerTick << endl;
 }
 
 void Kidneys::setParams()

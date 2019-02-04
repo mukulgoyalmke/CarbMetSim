@@ -86,6 +86,13 @@ HumanBody::~HumanBody()
     delete kidneys;
 }
 
+void HumanBody::stopExercise()
+{
+	exerciseOverAt = SimCtl::ticks;
+        SimCtl::time_stamp();
+        cout << " Exercise Stopped " << endl;
+}
+
 double HumanBody::insulinImpactOnGlycolysis()
 {
 	double insulin_level = blood->insulinLevel;
@@ -190,34 +197,35 @@ void HumanBody::processTick()
     double currBGL = blood->getBGL();
 
     SimCtl::time_stamp();
-    cout << " HumanBody:: BGL " << blood->getBGL() << endl;
-    SimCtl::time_stamp();
-    cout << " weight " << bodyWeight << endl;
+    cout << " HumanBody:: BGL " << currBGL << endl;
+    //SimCtl::time_stamp();
+    //cout << " weight " << bodyWeight << endl;
 
     double x = intestine->glycolysisPerTick + liver->glycolysisPerTick + muscles->glycolysisPerTick 
 		+ kidneys->glycolysisPerTick + blood->glycolysisPerTick;
-    totalGlycolysisSoFar += x;
+    //totalGlycolysisSoFar += x;
 
-    SimCtl::time_stamp();
-    cout << " HumanBody:: TotalGlycolysisPerTick " << x << endl;
-    SimCtl::time_stamp();
-    cout << " HumanBody:: TotalGlycolysisSoFar " << totalGlycolysisSoFar << endl;
+    //SimCtl::time_stamp();
+    //cout << " HumanBody:: TotalGlycolysisPerTick " << x << endl;
+    //SimCtl::time_stamp();
+    //cout << " HumanBody:: TotalGlycolysisSoFar " << totalGlycolysisSoFar << endl;
 
     x = kidneys->gngPerTick + liver->gngPerTick; 
-    totalGNGSoFar += x;
+    //totalGNGSoFar += x;
 
-    SimCtl::time_stamp();
-    cout << " HumanBody:: TotalGNGPerTick " << x << endl;
-    SimCtl::time_stamp();
-    cout << " HumanBody:: TotalGNGSoFar " << totalGNGSoFar << endl;
+    //SimCtl::time_stamp();
+    //cout << " HumanBody:: TotalGNGPerTick " << x << endl;
+    //SimCtl::time_stamp();
+    //cout << " HumanBody:: TotalGNGSoFar " << totalGNGSoFar << endl;
 
     x = brain->oxidationPerTick + heart->oxidationPerTick + muscles->oxidationPerTick;
-    totalOxidationSoFar += x;
-    SimCtl::time_stamp();
-    cout << " HumanBody:: TotalOxidationPerTick " << x << endl;
-    SimCtl::time_stamp();
-    cout << " HumanBody:: TotalOxidationSoFar " << totalOxidationSoFar << endl;
+    //totalOxidationSoFar += x;
+    //SimCtl::time_stamp();
+    //cout << " HumanBody:: TotalOxidationPerTick " << x << endl;
+    //SimCtl::time_stamp();
+    //cout << " HumanBody:: TotalOxidationSoFar " << totalOxidationSoFar << endl;
 
+/*************************************************
     SimCtl::time_stamp();
     cout << " HumanBody:: UseOfGlucoseOutsideLiverKidneysMuscles " << blood->glycolysisPerTick + 
 		brain->oxidationPerTick + 
@@ -252,6 +260,7 @@ void HumanBody::processTick()
     cout << " HumanBody:: TotalGlucoseReleasePerTick " << x << endl;
     SimCtl::time_stamp();
     cout << " HumanBody:: TotalGlucoseReleaseSoFar " << totalGlucoseReleaseSoFar << endl;
+************************************************************/
     
     if (bodyState == FED_EXERCISING)
     {
@@ -280,6 +289,7 @@ void HumanBody::processTick()
         //return;
     }
 
+/*************************************************************
 	if( SimCtl::ticks == 600 )
 	{
 		tempGNG = totalGNGSoFar;
@@ -311,6 +321,7 @@ void HumanBody::processTick()
 		<< " baseBGL " << baseBGL 
 		<< " peakBGL " << peakBGL << endl;
 	}
+**************************************************************/
 }
 
 void HumanBody::setParams()
@@ -723,8 +734,8 @@ void HumanBody::processExerciseEvent(unsigned exerciseID, unsigned duration)
 
     percentVO2Max = 3.5 * (exerciseTypes[exerciseID].intensity_)/vo2Max;
 
-    SimCtl::time_stamp();
-    cout << " Starting Exercise at " << percentVO2Max << " %VO2Max" << endl;
+    //SimCtl::time_stamp();
+    //cout << " Starting Exercise at " << percentVO2Max << " %VO2Max" << endl;
 
     if( percentVO2Max > 1.0 )
     {

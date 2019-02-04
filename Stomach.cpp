@@ -45,6 +45,14 @@ void Stomach::processTick()
 
         double geConstant = (double)(geConstant__(sim->generator))/1000.0;
 	double totalFood = RAG+SAG+protein+fat;
+
+	if( totalFood <= 0.001 )
+	{
+		cout << "Stomach should have been considered empty! RAG " << RAG << " SAG " << SAG
+			<< " protein " << protein << " fat " << fat << endl;
+		exit(-1);
+	}
+
 	// calorific density of the food in stomach
 	double calorificDensity = (4.0*(RAG+SAG+protein) + 9.0*fat)/totalFood; 
 	double geSlope = 9.0 * geSlopeMin_/calorificDensity;
@@ -66,11 +74,11 @@ void Stomach::processTick()
 
 	body->intestine->addChyme(ragInBolus,sagInBolus,proteinInBolus,fatInBolus);
 
-    	SimCtl::time_stamp();
-	cout << " Gastric Emptying:: Total Food " << totalFood << " Calorific Density " << calorificDensity
-	<< " geSlope " << geSlope <<  " ragInBolus " << ragInBolus << " sagInBolus " << sagInBolus << endl;
+    	//SimCtl::time_stamp();
+	//cout << " Gastric Emptying:: Total Food " << totalFood << " Calorific Density " << calorificDensity
+	//<< " geSlope " << geSlope <<  " ragInBolus " << ragInBolus << " sagInBolus " << sagInBolus << endl;
 
-    	if( (RAG == 0) && (SAG == 0) && (protein == 0) && (fat == 0) )
+    	if( (RAG <= 0.001) && (SAG <= 0.001) && (protein <= 0.001) && (fat <= 0.001) )
     	{
         	stomachEmpty = true;
         	body->stomachEmpty();

@@ -73,6 +73,8 @@ int SimCtl::fire_event()
             body->processExerciseEvent(((ExerciseEvent*)event_)->exerciseID_, ((ExerciseEvent*)event_)->duration_);
             break;
         case HALT:
+	    SimCtl::time_stamp();
+    	    cout << " weight " << body->bodyWeight << endl;
             exit(0);
         default:
             break;

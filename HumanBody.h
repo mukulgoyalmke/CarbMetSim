@@ -127,8 +127,9 @@ public:
 	double tempGlycogenStorage;
 	double tempGlycogenBreakdown;
 
-	double baseBGL; 
-	double peakBGL;
+	//double baseBGL; 
+	//double peakBGL;
+    void stopExercise();
 };
 
 
