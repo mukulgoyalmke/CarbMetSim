@@ -61,8 +61,11 @@ be used to modify the values of those parameters for which the default values ar
 lines in the "paramsfile" are setting the values of a few simulation parameters in "HumanBody" class:
 
 ALL HUMAN_BODY bodyWeight_ 57
+
 ALL HUMAN_BODY age_ 23
+
 ALL HUMAN_BODY gender_ 0
+
 ALL HUMAN_BODY fitnessLevel_ 50
 
 "eventsfile":
