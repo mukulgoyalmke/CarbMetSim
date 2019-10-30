@@ -1,4 +1,0 @@
-1 Walk1 3
-2 Walk2 5 
-3 Walk3 7 
-4 Walk4 9
