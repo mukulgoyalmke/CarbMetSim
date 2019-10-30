@@ -3,6 +3,8 @@
 #include "Blood.h"
 #include "PortalVein.h"
 #include "AdiposeTissue.h"
+#include "Muscles.h"
+#include "Intestine.h"
 #include "math.h"
 
 extern SimCtl* sim;
@@ -10,30 +12,32 @@ extern SimCtl* sim;
 Liver::Liver(HumanBody* body_)
 {
     body = body_;
-    glycogen = 100000.0; // equivalent of 100g of glucose
-    glycogenMax_ = 120000.0; // 120 g of glucose
+    glycogen = 100.0*1000.0; // equivalent of 100g of glucose
+    glycogenMax_ = 120.0*1000.0; // 120 g of glucose
     
     // Frayn Chapter 9
     
     // 5 micromol per kg per minute = 5*180.1559/1000 mg per kg per minute (ref: Gerich paper)
 	// default max glycogen breakdown rate is 5 micromol per kg per minute
-    glycogenToGlucose_ = 5.5 * 0.1801559;
-    glucoseToGlycogen_ = 33.0 * 0.1801559; 
-    maxGlycogenToGlucoseDuringExercise_ = 30.0 * 0.1801559;
+    //glycogenToGlucose_ = 5.5 * 0.1801559;
+    //glucoseToGlycogen_ = 33.0 * 0.1801559; 
+    glycogenToGlucoseInLiver_ = 0.9;
+    glucoseToGlycogenInLiver_ = 4.5;
 
     //Gerich paper: Liver consumes 1 micromol per kg per minute to 16.5 micromol per kg per minute of glucose depending upon post-absorptive/post-prandial state.
     glycolysisMin_ = 0.35 * 0.1801559; //mg per kg per minute
-    glycolysisMax_ = 0.35 * 10 * 0.1801559; //mg per kg per minute
+    glycolysisMax_ = 0.9 * 0.35 * 10 * 0.1801559; //mg per kg per minute
     
     glycolysisToLactateFraction_ = 1; // by default glycolysis just generates all lactate
     
     // 1 micromol per kg per minute = 0.1801559 mg per kg per minute
-    double micromol = 0.1801559;
-    gngFromLactate_ = 0.42 * 2.0 * micromol; 
-    gngFromGlycerol_ = 0.42 * 0.5 * micromol; 
-    gngFromGlutamine_ = 0.42 * 0.5 * micromol; 
-    gngFromAlanine_ = 0.42 * 1.0 * micromol; 
+    //double micromol = 0.1801559;
+    //gng_ = 0.42 * 4.0 * micromol; 
+    gngLiver_ = 0.16; 
     
+    //maxLipogenesis_ = 1000.0;
+    maxLipogenesis_ = 400.0;
+
     glucoseToNEFA_ = 0;
     
     fluidVolume_ = 12; //dl; Meyer paper on gluconeogenesis did measurements on liver volume
@@ -48,13 +52,8 @@ void Liver::processTick()
     double x; // to hold the random samples
     
     static std::poisson_distribution<int> rand__ (100);
-    static std::poisson_distribution<int> glycogenToGlucose__ (1000.0*glycogenToGlucose_);
-    static std::poisson_distribution<int> glucoseToGlycogen__ (1000.0*glucoseToGlycogen_);
+    static std::poisson_distribution<int> glucoseToGlycogen__ (1000.0*glucoseToGlycogenInLiver_);
     static std::poisson_distribution<int> glycolysisMin__ (1000.0*glycolysisMin_);
-    static std::poisson_distribution<int> gngFromLactate__ (1000.0*gngFromLactate_);
-    static std::poisson_distribution<int> gngFromGlycerol__ (1000.0*gngFromGlycerol_);
-    static std::poisson_distribution<int> gngFromGlutamine__ (1000.0*gngFromGlutamine_);
-    static std::poisson_distribution<int> gngFromAlanine__ (1000.0*gngFromAlanine_);
     static std::poisson_distribution<int> Glut2VMAX__ (1000.0*Glut2VMAX_);
     
     absorptionPerTick = 0;
@@ -93,28 +92,39 @@ void Liver::processTick()
     x = (double)(glucoseToGlycogen__(sim->generator));
     double toGlycogen = scale * x * (body->bodyWeight)/1000.0;
     
-    //cout << "glInLiver " << glInLiver << " baseBGL " << baseBGL << " scale "
-    //    << scale<< " toGlycogen " << toGlycogen << endl;
-
     if( toGlycogen > glucose )
         toGlycogen = glucose;
     
     if( toGlycogen > 0 )
     {
-    	glycogen += toGlycogen;
+	if( glycogen + toGlycogen <= glycogenMax_ )
+    		glycogen += toGlycogen;
+	else
+	{
+    		glycogen += toGlycogen;
+
+		if( glycogen - glycogenMax_ > maxLipogenesis_ )
+		{
+        			body->adiposeTissue->lipogenesis(maxLipogenesis_);
+				glycogen -= toGlycogen; // original glycogen
+				toGlycogen = maxLipogenesis_ + glycogenMax_ - glycogen;
+        			glycogen = glycogenMax_;
+    				//SimCtl::time_stamp();
+    				//cout << " Liver:: LipogenesisMax " << maxLipogenesis_ << endl;
+		}
+		else
+		{
+				double toLipogenesis = glycogen - glycogenMax_;
+        			body->adiposeTissue->lipogenesis(toLipogenesis);
+        			glycogen = glycogenMax_;
+    				//SimCtl::time_stamp();
+    				//cout << " Liver:: Lipogenesis " << toLipogenesis << endl;
+		}
+	}
     }
  
     toGlycogenPerTick = toGlycogen;
 
-    if( glycogen > glycogenMax_ )
-    {
-    //if the liver cannot store any more glycogen, we assume that this glucose (which would have been stored as glycogen) is converted to fat.
-        //SimCtl::time_stamp();
-        //cout << " glucose consumed for Lipogenesis in liver " << glycogen - glycogenMax_ << "mg" << endl;
-        body->adiposeTissue->lipogenesis(glycogen - glycogenMax_);
-        glycogen = glycogenMax_;
-    }
-    
     glucose -= toGlycogen;
     
     //cout << "After glycogen synthesis in liver, liver glycogen " << glycogen << " mg, live glucose " << glucose << " mg" << endl;
@@ -133,82 +143,74 @@ void Liver::processTick()
     glycolysisPerTick = toGlycolysis;
 
     //gluconeogenesis.
- 
-    scale = body->insulinImpactOnGNG();
-    // from non-lactate sources
-    double gng =  (double)(gngFromGlycerol__(sim->generator))
-    		+ (double)(gngFromGlutamine__(sim->generator))
-    		+ (double)(gngFromAlanine__(sim->generator));
-    gng *= scale * (body->gngImpact_) * (body->bodyWeight)/1000.0;
+    double gng = gngLiver_;
+    gng *= body->insulinImpactOnGNG();
+    //gng *= (double)(rand__(sim->generator))/100.0;
+    gng *= (0.9 + (double)(rand__(sim->generator))/1000.0);
+    gng *= body->bodyWeight;
+
     if( gng > 0 )
     {
-    	glucose += gng;
+        glucose += gng;
     }
     gngPerTick = gng;
-
-    // from lactate
-    gng = (double)(gngFromLactate__(sim->generator));
-    gng *= scale * (body->gngImpact_) * (body->bodyWeight)/1000.0;
-    gng = body->blood->consumeGNGSubstrates(gng);
-    if( gng > 0 )
-    {
-    	glucose += gng;
-    }
-    gngPerTick += gng;
-
-/*******************************
-    //Gluconeogenesis will occur even in the presence of high insulin in proportion to lactate concentration. 
-    x = (double)(gngFromHighLactate__(sim->generator));
-    x *= (body->bodyWeight)/1000.0;
-    x = body->blood->gngFromHighLactate(x);
-    if( x > 0 )
-    {
-    	glucose += x;
-    	//SimCtl::time_stamp();
-    	//cout << " gng in liver from high lactate " << x << "mg" << endl;
-    }
-    gngPerTick += x;
-**********************************/
 
     //cout << "After GNG , liver glucose " << glucose << " mg, liver glycogen " << glycogen << " mg, blood glucose " << body->blood->glucose << " mg, blood lactate " << body->blood->lactate << " mg" << endl;
     
     // glycogen breakdown
+    double glycogenBreakdown = glycogenToGlucoseInLiver_;
+    glycogenBreakdown *= body->insulinImpactOnGlycogenBreakdownInLiver();
+    //glycogenBreakdown *= (double)(rand__(sim->generator))/100.0;
+    glycogenBreakdown *= (0.9 + (double)(rand__(sim->generator))/1000.0);
+    glycogenBreakdown *= body->bodyWeight;
+
+    if( glycogenBreakdown > 0 )
+    {
+        if( glycogenBreakdown <= glycogen )
+        {
+                glycogen -= glycogenBreakdown;
+                glucose += glycogenBreakdown;
+        }
+        else
+        {
+                glucose += glycogen;
+                glycogenBreakdown = glycogen;
+                glycogen = 0;
+        }
+    }
+    fromGlycogenPerTick = glycogenBreakdown;
+
+/***********************************************************************************************
+    // try to maintain glucose homeostasis.
+    double glucoseNeeded = body->getGlucoseNeedsOutsideMuscles();
+    glucoseNeeded += body->muscles->glucoseAbsorbedPerTick;
+
+    glucoseNeeded -= body->intestine->toPortalVeinPerTick;
+    glucoseNeeded -= gngPerTick;
+    glucoseNeeded -= body->kidneys->gngPerTick;
+    glucoseNeeded -= fromGlycogenPerTick;
+
+    if( glucoseNeeded < 0 )
+	glucoseNeeded = 0;
+
     double fromGlycogen = 0.0;
 
     if(body->isExercising() )
     {
-	// try to maintain glucose homeostasis.
-	fromGlycogen = body->getGlucoseNeedsOutsideMuscles();
+	double max = maxGlycogenToGlucoseDuringExercise_ * (body->bodyWeight) * (body->maxLiverGlycogenBreakdownDuringExerciseImpact_); 
 
-	// on average 10% of energy muscles need comes from oxidation of glucose absorbed from blood.
-        //oxidation of 1g of carbs yields 4kcal of energy
-	double currEnergyNeed = body->currentEnergyExpenditure();
-        x = (double)(rand__(sim->generator));
-        fromGlycogen += 0.1*(x/100.0)*1000.0*(currEnergyNeed)/4.0; // in milligrams
+	fromGlycogen = glucoseNeeded;
 
-	fromGlycogen -= gngPerTick;
-	fromGlycogen -= body->kidneys->gngPerTick;
+	if( glucoseNeeded > max || glucoseNeeded > glycogen )
+	{
+		double smaller = max;
+		if( smaller > glycogen )
+			smaller = glycogen;
 
-	if( fromGlycogen < 0 )
-		fromGlycogen = 0;
-
-	double max = maxGlycogenToGlucoseDuringExercise_*(body->bodyWeight)*(body->maxLiverGlycogenBreakdownDuringExerciseImpact_); 
-	if( fromGlycogen > max )
-		fromGlycogen = max; 
+		fromGlycogen = smaller;
+	}
     } 
-    else
-    {
-    	//glycogen breakdown (depends on insulin level and insulin resistance)
-    
-    	scale = body->liverGlycogenBreakdownImpact_;
-    	scale *= body->insulinImpactOnGlycogenBreakdownInLiver();
-    	x = (double)(glycogenToGlucose__(sim->generator));
-    	fromGlycogen = scale * x * (body->bodyWeight)/1000.0;
-    }
 
-    if( fromGlycogen > glycogen )
-        fromGlycogen = glycogen;
-    
     if( fromGlycogen > 0 )
     {
     	glycogen -= fromGlycogen;
@@ -216,21 +218,41 @@ void Liver::processTick()
     }
     fromGlycogenPerTick = fromGlycogen;
 
-    //BUKET NEW: 93% of unbranched amino acids in portal vein are retained in Liver, because the leaked amino acids from Intestine consists of 15% branched and 85% unbranched, but after liver consumption the percentage needs to be 70% branched, 30% unbranched. To provide these percentages 93% of unbranched amino acids in portal vein are retained in liver. (From Frayn's book)
+   // if no liver glycogen left, invoke GNG again to produce glucose to maintain glucose homeostasis
+
+   if( glycogen == 0 )
+   {
+   	glucoseNeeded -= fromGlycogen;
+
+    	if(body->isExercising() )
+    	{
+    		double maxGNGDuringExercise =  (double)(maxGNGDuringExercise__(sim->generator));
+    		//SimCtl::time_stamp();
+		//cout << " Liver:: Glucose Needed " << glucoseNeeded << " maxGNG " << maxGNGDuringExercise << endl; 
+    		//maxGNGDuringExercise *= (body->percentVO2Max)*(body->bodyWeight)/1000.0;
+    		maxGNGDuringExercise *= (body->bodyWeight)/1000.0;
+		//cout << " Liver:: Glucose Needed " << glucoseNeeded << " maxGNG " << maxGNGDuringExercise << endl; 
+   		if( glucoseNeeded > maxGNGDuringExercise - gngPerTick )
+			glucoseNeeded = maxGNGDuringExercise - gngPerTick;
+    	}
+
+   	if( glucoseNeeded > 0 )
+   	{
+   		glucose += glucoseNeeded;
+    		gngPerTick += glucoseNeeded;
+    		//SimCtl::time_stamp();
+		//cout << " Liver:: ExtraGNG " << glucoseNeeded << " " << gngPerTick << endl; 
+   	}
+   }
+****************************************************************************************************************/
+
+    //93% of unbranched amino acids in portal vein are retained in Liver, because the leaked amino acids from Intestine consists of 15% branched and 85% unbranched, but after liver consumption the percentage needs to be 70% branched, 30% unbranched. To provide these percentages 93% of unbranched amino acids in portal vein are retained in liver. (From Frayn's book)
     
     body->portalVein->releaseAminoAcids();
     
-    //6. consume some glucose to form fatty acids (at configured rate that depends on glucose level)
-
-    /*
-    if( body->blood->glucose > baseBGL ){
-        body->blood->consumeGlucose(glucoseToNEFA_);
-    }
-    */
-    
     glInLiver = glucose/fluidVolume_;
     double bgl = body->blood->getBGL();
-    
+ 
     if( glInLiver > bgl )
     {
         double diff = glInLiver - bgl;
@@ -252,21 +274,20 @@ void Liver::processTick()
     SimCtl::time_stamp();
     cout << " Liver:: ToGlycogen " << toGlycogenPerTick << endl;
     SimCtl::time_stamp();
+    cout << " Liver:: glycogen " << glycogen/1000.0 << endl;
+    SimCtl::time_stamp();
     cout << " Liver:: FromGlycogen " << fromGlycogenPerTick << endl;
     SimCtl::time_stamp();
-    cout << " Liver:: glycogen " << glycogen << endl;
-/*
+    cout << " Liver:: GNG " << gngPerTick << endl;
+    //SimCtl::time_stamp();
+    //cout << " Liver:: GlucoseProduced " << gngPerTick + fromGlycogenPerTick << endl;
+
     SimCtl::time_stamp();
     cout << " Liver:: Absorption " << absorptionPerTick << endl;
     SimCtl::time_stamp();
     cout << " Liver:: Glycolysis " << glycolysisPerTick << endl;
     SimCtl::time_stamp();
-    cout << " Liver:: GNG " << gngPerTick << endl;
-*/
-    SimCtl::time_stamp();
     cout << " Liver:: Release " << releasePerTick  << "mg, gl " << glucose/fluidVolume_ << endl;
-
-//glycogen " << glycogen << "mg, glucose " << glucose 
 }
 
 void Liver::setParams()
@@ -274,6 +295,14 @@ void Liver::setParams()
     for( ParamSet::iterator itr = body->metabolicParameters[body->bodyState][LIVER].begin();
         itr != body->metabolicParameters[body->bodyState][LIVER].end(); itr++)
     {
+        if(itr->first.compare("Glycogen") == 0)
+        {
+            glycogen = 1000.0 * (itr->second);
+        }
+        if(itr->first.compare("MaxGlycogen") == 0)
+        {
+            glycogenMax_ = 1000.0 * (itr->second);
+        }
         if(itr->first.compare("fluidVolume_") == 0)
         {
             fluidVolume_ = itr->second;
@@ -286,17 +315,13 @@ void Liver::setParams()
         {
             Glut2VMAX_ = itr->second;
         }
-        if(itr->first.compare("glucoseToGlycogen_") == 0)
+        if(itr->first.compare("glucoseToGlycogenInLiver_") == 0)
         {
-            glucoseToGlycogen_ = itr->second;
+            glucoseToGlycogenInLiver_ = (itr->second); 
         }
-        if(itr->first.compare("glycogenToGlucose_") == 0)
+        if(itr->first.compare("glycogenToGlucoseInLiver_") == 0)
         {
-            glycogenToGlucose_ = itr->second;
-        }
-        if(itr->first.compare("maxGlycogenToGlucoseDuringExercise_") == 0)
-        {
-            maxGlycogenToGlucoseDuringExercise_ = itr->second;
+            glycogenToGlucoseInLiver_ = itr->second;
         }
         if(itr->first.compare("glycolysisMin_") == 0)
         {
@@ -310,13 +335,17 @@ void Liver::setParams()
         {
             glycolysisToLactateFraction_ = itr->second;
         }
-        if(itr->first.compare("gngFromLactate_") == 0)
+        if(itr->first.compare("gngLiver_") == 0)
         {
-            gngFromLactate_ = itr->second;
+            gngLiver_ = itr->second;
         }
         if(itr->first.compare("glucoseToNEFA_") == 0)
         {
             glucoseToNEFA_ = itr->second;
+        }
+        if(itr->first.compare("maxLipogenesis_") == 0)
+        {
+            maxLipogenesis_ = itr->second;
         }
     }
 }

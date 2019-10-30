@@ -27,22 +27,21 @@ HumanBody::HumanBody()
     heart =new Heart(this);
     blood = new Blood(this);
     kidneys = new Kidneys(this);
+    adiposeTissue = new AdiposeTissue(this);
+    muscles = new Muscles(this);
     
     glut4Impact_ = 1.0;
-    liverGlycogenBreakdownImpact_ = 1.0;
+    liverGlycogenBreakdownImpact_ = 6.0;
     liverGlycogenSynthesisImpact_ = 1.0;
-    maxLiverGlycogenBreakdownDuringExerciseImpact_ = 1.0;
-    maxGlucoseAbsorptionInMusclesDuringExerciseImpact_ = 1.0;
-    gngImpact_ = 1.0;
+    gngImpact_ = 6.0;
     glycolysisMinImpact_ = 1.0;
     glycolysisMaxImpact_ = 1.0;
     excretionKidneysImpact_ = 1.0;
 
     bodyState = POSTABSORPTIVE_RESTING;
-    bodyWeight = 65; //kg
+    //bodyWeight = 65; //kg
+    // must specify body weight in the params
     fatFraction_ = 0.2;
-    adiposeTissue = new AdiposeTissue(this);
-    muscles = new Muscles(this);
     
     currExercise = 0;
     
@@ -54,22 +53,20 @@ HumanBody::HumanBody()
     
     exerciseOverAt = 0; // when does the current exercise event get over
 
-	insulinImpactOnGlycolysis_Mean = 0.8;
-	insulinImpactOnGlycolysis_StdDev = 0.2;
-	insulinImpactOnGNG_Mean = 0.9999;
-	insulinImpactOnGNG_StdDev = 0.0001;
-	insulinImpactGlycogenBreakdownInLiver_Mean = 0.1;
-	insulinImpactGlycogenBreakdownInLiver_StdDev = 0.01;
-	insulinImpactGlycogenSynthesisInLiver_Mean = 0.9;
-	insulinImpactGlycogenSynthesisInLiver_StdDev = 0.1;
+   	lastHardExerciseAt = -61;
 
-	totalGlycolysisSoFar = 0;
-    	totalOxidationSoFar = 0;
-    	totalGlycogenStorageSoFar = 0;
-    	totalGlycogenBreakdownSoFar = 0;
-    	totalGNGSoFar = 0;
-    	totalEndogeneousGlucoseReleaseSoFar = 0;
-	totalGlucoseReleaseSoFar = 0;
+	insulinImpactOnGlycolysis_Mean = 0.5;
+	insulinImpactOnGlycolysis_StdDev = 0.2;
+	insulinImpactOnGNG_Mean = 0.5;
+	insulinImpactOnGNG_StdDev = 0.2;
+	insulinImpactGlycogenBreakdownInLiver_Mean = 0.1;
+	insulinImpactGlycogenBreakdownInLiver_StdDev = 0.02;
+	insulinImpactGlycogenSynthesisInLiver_Mean = 0.5;
+	insulinImpactGlycogenSynthesisInLiver_StdDev = 0.2;
+
+        intensityPeakGlucoseProd_ = 0.2;
+
+	resetTotals(false);
 }
 
 HumanBody::~HumanBody()
@@ -95,18 +92,64 @@ double HumanBody::insulinImpactOnGlycolysis()
 
 double HumanBody::insulinImpactOnGNG()
 {
-	//double insulin_level = blood->insulinLevel;
-	//double scale = 0.5*(1 + erf((insulin_level - insulinImpactOnGNG_Mean)/(insulinImpactOnGNG_StdDev*sqrt(2))));
-	//return (1.0 - scale);
 	return 1.0;
 }
 
+/********************************************
+double HumanBody::insulinImpactOnGNG()
+{
+        double insulin_level = blood->insulinLevel;
+
+        if( gngImpact_ < 1.0 )
+        {
+                cout << "gngImpact_ less than 1" << endl;
+                exit(-1);
+        }
+
+        if( blood->baseInsulinLevel_ >= insulinImpactOnGNG_Mean )
+        {
+                cout << "error configuring baseInsulinLevel and insulinImpactOnGNG" << endl;
+                exit(-1);
+        }
+
+        if( insulin_level >= blood->baseInsulinLevel_ )
+        {
+                double scale = 0.5*(1 + erf((insulin_level - insulinImpactOnGNG_Mean)/(insulinImpactOnGNG_StdDev*sqrt(2))));
+                return (1.0 - scale);
+        }
+        else
+        {
+                return ( gngImpact_ -  insulin_level*(gngImpact_ - 1.0)/(blood->baseInsulinLevel_) );
+        }
+        //return 1.0;
+}
+********************************************/
+
 double HumanBody::insulinImpactOnGlycogenBreakdownInLiver()
 {
-	double insulin_level = blood->insulinLevel;
-	double scale = 0.5*(1 + erf((insulin_level - insulinImpactGlycogenBreakdownInLiver_Mean)/(insulinImpactGlycogenBreakdownInLiver_StdDev*sqrt(2))));
-	//cout << " insulin level " << insulin_level << endl;
-	return (1.0 - scale);
+        double insulin_level = blood->insulinLevel;
+
+        if( liverGlycogenBreakdownImpact_ < 1.0 )
+        {
+                cout << "liverGlycogenBreakdownImpact_ less than 1" << endl;
+                exit(-1);
+        }
+
+        if( blood->baseInsulinLevel_ >= insulinImpactGlycogenBreakdownInLiver_Mean )
+        {
+                cout << "error configuring baseInsulinLevel and insulinImpactGlycogenBreakdownInLiver" << endl;
+                exit(-1);
+        }
+
+        if( insulin_level >= blood->baseInsulinLevel_ )
+        {
+                double scale = 0.5*(1 + erf((insulin_level - insulinImpactGlycogenBreakdownInLiver_Mean)/(insulinImpactGlycogenBreakdownInLiver_StdDev*sqrt(2))));
+                return (1.0 - scale);
+        }
+        else
+        {
+                return ( liverGlycogenBreakdownImpact_ -  insulin_level*(liverGlycogenBreakdownImpact_ - 1.0)/(blood->baseInsulinLevel_) );
+        }
 }
 
 double HumanBody::insulinImpactOnGlycogenSynthesisInLiver()
@@ -170,6 +213,36 @@ double HumanBody::getGlucoseNeedsOutsideMuscles()
     return x;
 }
 
+void HumanBody::resetTotals(bool print)
+{
+	if(print)
+	{
+        	SimCtl::time_stamp();
+        	cout << " Totals for the day: " 
+			<< totalGlycolysisSoFar << " "
+    			<< totalExcretionSoFar << " "
+    			<< totalOxidationSoFar << " "
+    			<< totalGNGSoFar << " "
+    			<< totalLiverGlycogenStorageSoFar << " "
+    			<< totalLiverGlycogenBreakdownSoFar << " "
+    			<< totalMusclesGlycogenStorageSoFar << " "
+    			<< totalMusclesGlycogenBreakdownSoFar << " "
+    			<< totalGlucoseFromIntestineSoFar << endl;
+	}
+
+	totalGlycolysisSoFar = 0;
+    	totalExcretionSoFar = 0;
+    	totalOxidationSoFar = 0;
+    	totalGNGSoFar = 0;
+    	totalLiverGlycogenStorageSoFar = 0;
+    	totalLiverGlycogenBreakdownSoFar = 0;
+    	totalMusclesGlycogenStorageSoFar = 0;
+    	totalMusclesGlycogenBreakdownSoFar = 0;
+    	totalGlucoseFromIntestineSoFar = 0;
+
+	dailyCarbs = 0;
+}
+
 void HumanBody::processTick()
 {
     //Gerich: In terms of whole-body glucose economy, normally approximately 45% of ingested glucose is thought to be
@@ -190,9 +263,11 @@ void HumanBody::processTick()
     double currBGL = blood->getBGL();
 
     SimCtl::time_stamp();
-    cout << " HumanBody:: BGL " << blood->getBGL() << endl;
+    cout << " " << currBGL << " " << (liver->glycogen)/1000.0 << " " << (muscles->glycogen)/1000.0 << endl;
     SimCtl::time_stamp();
-    cout << " weight " << bodyWeight << endl;
+    cout << " HumanBody:: BGL " << currBGL << endl;
+    //SimCtl::time_stamp();
+    //cout << " weight " << bodyWeight << endl;
 
     double x = intestine->glycolysisPerTick + liver->glycolysisPerTick + muscles->glycolysisPerTick 
 		+ kidneys->glycolysisPerTick + blood->glycolysisPerTick;
@@ -225,19 +300,24 @@ void HumanBody::processTick()
 		intestine->glycolysisPerTick << endl;
 		
     x = liver->toGlycogenPerTick + muscles->glycogenSynthesizedPerTick;
-    totalGlycogenStorageSoFar += x;
+    totalLiverGlycogenStorageSoFar += liver->toGlycogenPerTick;
+    totalMusclesGlycogenStorageSoFar += muscles->glycogenSynthesizedPerTick;
     SimCtl::time_stamp();
     cout << " HumanBody:: TotalGlycogenStoragePerTick " << x << endl;
     SimCtl::time_stamp();
-    cout << " HumanBody:: TotalGlycogenStorageSoFar " << totalGlycogenStorageSoFar << endl;
+    cout << " HumanBody:: TotalGlycogenStorageSoFar " << 
+    totalLiverGlycogenStorageSoFar + totalMusclesGlycogenStorageSoFar 
+    << endl;
 
     x = liver->fromGlycogenPerTick + muscles->glycogenBreakdownPerTick;
-    totalGlycogenBreakdownSoFar += x;
-
+    totalLiverGlycogenBreakdownSoFar += liver->fromGlycogenPerTick;
+    totalMusclesGlycogenBreakdownSoFar += muscles->glycogenBreakdownPerTick;
     SimCtl::time_stamp();
     cout << " HumanBody:: TotalGlycogenBreakdownPerTick " << x << endl;
     SimCtl::time_stamp();
-    cout << " HumanBody:: TotalGlycogenBreakdownSoFar " << totalGlycogenBreakdownSoFar << endl;
+    cout << " HumanBody:: TotalGlycogenBreakdownSoFar " << 
+    totalLiverGlycogenBreakdownSoFar + totalMusclesGlycogenBreakdownSoFar 
+    << endl;
 
     x = liver->fromGlycogenPerTick + kidneys->gngPerTick + liver->gngPerTick; 
     totalEndogeneousGlucoseReleaseSoFar += x;
@@ -253,18 +333,22 @@ void HumanBody::processTick()
     SimCtl::time_stamp();
     cout << " HumanBody:: TotalGlucoseReleaseSoFar " << totalGlucoseReleaseSoFar << endl;
     
+    totalExcretionSoFar += kidneys->excretionPerTick;
+    totalGlucoseFromIntestineSoFar += intestine->toPortalVeinPerTick; 
+
+    if( SimCtl::dayOver() )
+	resetTotals(true);
+
     if (bodyState == FED_EXERCISING)
     {
         if( SimCtl::ticks == exerciseOverAt )
         {
             bodyState = FED_RESTING;
             currEnergyExpenditure = 1.0/60.0;
+    	    percentVO2Max = 3.5 * 1.0/vo2Max;
             // energy expenditure in resting state is 1 MET
             //setParams();
-            //SimCtl::time_stamp();
-            //cout << " HumanBody:: State " << bodyState << endl;
         }
-        //return;
     }
     
     if (bodyState == POSTABSORPTIVE_EXERCISING)
@@ -273,11 +357,9 @@ void HumanBody::processTick()
         {
             bodyState = POSTABSORPTIVE_RESTING;
             currEnergyExpenditure = 1.0/60.0;
+    	    percentVO2Max = 3.5 * 1.0/vo2Max;
             //setParams();
-            //SimCtl::time_stamp();
-            //cout << " HumanBody:: State " << bodyState << endl;
         }
-        //return;
     }
 
 	if( SimCtl::ticks == 600 )
@@ -286,8 +368,8 @@ void HumanBody::processTick()
         	tempGlycolysis = totalGlycolysisSoFar;
         	tempOxidation = totalOxidationSoFar;
         	tempExcretion = kidneys->totalExcretion;
-        	tempGlycogenStorage = totalGlycogenStorageSoFar;
-        	tempGlycogenBreakdown = totalGlycogenBreakdownSoFar;
+        	tempGlycogenStorage = totalLiverGlycogenStorageSoFar + totalMusclesGlycogenStorageSoFar;
+        	tempGlycogenBreakdown = totalLiverGlycogenBreakdownSoFar + totalMusclesGlycogenBreakdownSoFar;
 
 		baseBGL = currBGL;
 		peakBGL = currBGL;
@@ -306,8 +388,8 @@ void HumanBody::processTick()
 		<< " glycolysis " << totalGlycolysisSoFar - tempGlycolysis 
         	<< " oxidation " << totalOxidationSoFar - tempOxidation 
         	<< " excretion " << kidneys->totalExcretion - tempExcretion 
-        	<< " glycogenStorage " << totalGlycogenStorageSoFar - tempGlycogenStorage 
-        	<< " glycogenBreakdown " << totalGlycogenBreakdownSoFar - tempGlycogenBreakdown 
+        	<< " glycogenStorage " <<  totalLiverGlycogenStorageSoFar + totalMusclesGlycogenStorageSoFar - tempGlycogenStorage 
+        	<< " glycogenBreakdown " <<  totalLiverGlycogenBreakdownSoFar + totalMusclesGlycogenBreakdownSoFar - tempGlycogenBreakdown
 		<< " baseBGL " << baseBGL 
 		<< " peakBGL " << peakBGL << endl;
 	}
@@ -367,10 +449,6 @@ void HumanBody::setParams()
         {
 		maxLiverGlycogenBreakdownDuringExerciseImpact_ = itr->second;
         }
-        if(itr->first.compare("maxGlucoseAbsorptionInMusclesDuringExerciseImpact_") == 0)
-        {
-    		maxGlucoseAbsorptionInMusclesDuringExerciseImpact_ = itr->second;
-        }
         if(itr->first.compare("gngImpact_") == 0)
         {
             gngImpact_ = itr->second;
@@ -378,6 +456,7 @@ void HumanBody::setParams()
         if(itr->first.compare("bodyWeight_") == 0)
         {
             bodyWeight = itr->second;
+	    adiposeTissue->fat = fatFraction_*bodyWeight*1000.0;
         }
         if(itr->first.compare("insulinImpactOnGlycolysis_Mean") == 0)
         {
@@ -410,6 +489,10 @@ void HumanBody::setParams()
         if(itr->first.compare("insulinImpactGlycogenSynthesisInLiver_StdDev") == 0)
         {
             insulinImpactGlycogenSynthesisInLiver_StdDev = itr->second;
+        }
+        if(itr->first.compare("intensityPeakGlucoseProd_") == 0)
+        {
+            intensityPeakGlucoseProd_ = itr->second;
         }
     }
     
@@ -666,6 +749,8 @@ void HumanBody::setVO2Max()
 			exit(-1);
 		}
 	}
+    	percentVO2Max = 3.5 * 1.0/vo2Max;
+		// Assuming rest MET is 1.0
 }
 
 void HumanBody::processFoodEvent(unsigned foodID, unsigned howmuch)
@@ -736,10 +821,15 @@ void HumanBody::processExerciseEvent(unsigned exerciseID, unsigned duration)
     currEnergyExpenditure = (exerciseTypes[exerciseID].intensity_)/60.0;
     // intensity is in METs, where one MET is 1kcal/(kg.hr)
     
+
     if( bodyState == FED_RESTING )
     {
         bodyState = FED_EXERCISING;
         exerciseOverAt = SimCtl::ticks + duration;
+
+    	if( exerciseTypes[exerciseID].intensity_ >= 6.0 )
+        	lastHardExerciseAt = (int)(exerciseOverAt);
+
         //setParams();
         //SimCtl::time_stamp();
         //cout << "Entering State " << bodyState << endl;
@@ -750,6 +840,10 @@ void HumanBody::processExerciseEvent(unsigned exerciseID, unsigned duration)
     {
         bodyState = POSTABSORPTIVE_EXERCISING;
         exerciseOverAt = SimCtl::ticks + duration;
+
+    	if( exerciseTypes[exerciseID].intensity_ >= 6.0 )
+        	lastHardExerciseAt = (int)(exerciseOverAt);
+
         //setParams();
         //SimCtl::time_stamp();
         //cout << "Entering State " << bodyState << endl;

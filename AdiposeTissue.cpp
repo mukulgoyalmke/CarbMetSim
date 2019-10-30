@@ -17,7 +17,8 @@ void AdiposeTissue::setParams()
 AdiposeTissue::AdiposeTissue(HumanBody* myBody)
 {
     body = myBody;
-    fat = (body->fatFraction_)*(body->bodyWeight)*1000.0;
+    //fat = (body->fatFraction_)*(body->bodyWeight)*1000.0;
+    // will be set by HumanBody once it gets the bodyWeight
 }
 
 void AdiposeTissue::lipogenesis(double glucoseInMG)

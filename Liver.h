@@ -9,26 +9,24 @@
 class Liver
 {
     friend class HumanBody;
+    friend class SimCtl;
 
     double glycogen;
     double glycogenMax_;
     
-    double glucoseToGlycogen_;
+    double glucoseToGlycogenInLiver_;
     double glycogenSynth_Insulin_Mean_;
     double glycogenSynth_Insulin_StdDev_;
 
-    double glycogenToGlucose_; // in units of mg of glucose per kg per minute
-    double maxGlycogenToGlucoseDuringExercise_; // in units of mg of glucose per kg per minute
+    double glycogenToGlucoseInLiver_; // in units of mg of glucose per kg per minute
+    double maxLipogenesis_; // in units of mg per minute
     
     double glycolysisMin_; // mg per kg per minute
     double glycolysisMax_;
     
     double glycolysisToLactateFraction_;
 
-    double gngFromLactate_;
-    double gngFromGlycerol_;
-    double gngFromGlutamine_;
-    double gngFromAlanine_;
+    double gngLiver_;
     
     double glucoseToNEFA_;
     

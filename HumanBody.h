@@ -49,23 +49,11 @@ public:
     BodyState bodyState;
 
     double glut4Impact_;
-    double liverGlycogenBreakdownImpact_;
     double liverGlycogenSynthesisImpact_;
     double maxLiverGlycogenBreakdownDuringExerciseImpact_;
-    double maxGlucoseAbsorptionInMusclesDuringExerciseImpact_;
-    double gngImpact_;
     double glycolysisMinImpact_;
     double glycolysisMaxImpact_;
     double excretionKidneysImpact_;
-
-	double insulinImpactOnGlycolysis_Mean;
-	double insulinImpactOnGNG_Mean;
-	double insulinImpactGlycogenBreakdownInLiver_Mean;
-	double insulinImpactGlycogenSynthesisInLiver_Mean;
-	double insulinImpactOnGlycolysis_StdDev;
-	double insulinImpactOnGNG_StdDev;
-	double insulinImpactGlycogenBreakdownInLiver_StdDev;
-	double insulinImpactGlycogenSynthesisInLiver_StdDev;
 
     void setVO2Max();
     int age; // in years
@@ -79,6 +67,7 @@ public:
     unsigned currExercise;
     double currEnergyExpenditure; // current energy expenditure in kcal/minute per kg of body weight
     unsigned exerciseOverAt; // when does the current exercise event get over
+    int lastHardExerciseAt; // when was the last "hard" exercise
     
     Stomach* stomach;
     Intestine* intestine;
@@ -106,12 +95,17 @@ public:
     double getGlucoseNeedsOutsideMuscles();
 
     double totalGlycolysisSoFar;
-    double totalOxidationSoFar;
-    double totalGlycogenStorageSoFar;
-    double totalGlycogenBreakdownSoFar;
     double totalGNGSoFar;
+    double totalOxidationSoFar;
+    double totalExcretionSoFar;
+    double totalLiverGlycogenStorageSoFar;
+    double totalLiverGlycogenBreakdownSoFar;
+    double totalMusclesGlycogenStorageSoFar;
+    double totalMusclesGlycogenBreakdownSoFar;
+    double totalGlucoseFromIntestineSoFar;
     double totalEndogeneousGlucoseReleaseSoFar;
     double totalGlucoseReleaseSoFar;
+    void resetTotals(bool print);
 
     double glycolysis(double min, double max);
 
@@ -129,6 +123,22 @@ public:
 
 	double baseBGL; 
 	double peakBGL;
+
+ 	double dailyCarbs;
+    double intensityPeakGlucoseProd_; // exercise intensity in %VO2Maxat which peak GNG, glycogen breakdown takes place
+private:
+    double gngImpact_;
+    double liverGlycogenBreakdownImpact_;
+
+	double insulinImpactOnGlycolysis_Mean;
+	double insulinImpactOnGNG_Mean;
+	double insulinImpactGlycogenBreakdownInLiver_Mean;
+	double insulinImpactGlycogenSynthesisInLiver_Mean;
+	double insulinImpactOnGlycolysis_StdDev;
+	double insulinImpactOnGNG_StdDev;
+	double insulinImpactGlycogenBreakdownInLiver_StdDev;
+	double insulinImpactGlycogenSynthesisInLiver_StdDev;
+
 };
 
 

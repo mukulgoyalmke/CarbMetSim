@@ -75,6 +75,7 @@ public:
     inline unsigned elapsed_days();
     inline unsigned elapsed_hours();
     inline unsigned elapsed_minutes();
+    static bool dayOver();
     static void time_stamp();
     
     void readEvents(string file);

@@ -9,18 +9,14 @@ Kidneys::Kidneys(HumanBody* myBody)
 {
     body = myBody;
     
-    glutamineConsumed_ = 0;
-    
     // 1 micromol per kg per minute = 0.1801559 mg per kg per minute
-    double micromol = 0.1801559;
-    gngFromLactate_ = 0.42 * 1.1 * micromol;
-    gngFromGlycerol_ = 0.42 * 0.5 * micromol;
-    gngFromGlutamine_ = 0.42 * 0.5 * micromol;
-    gngFromAlanine_ = 0.42 * 0.1 * micromol;
+    //double micromol = 0.1801559;
+    //gng_ = 0.42 * 2.2 * micromol;
+    gngKidneys_ = 0.16;
     
     //Gerich: insulin dependent: 1 to 5 micromol per kg per minute
     glycolysisMin_ = 0.35 * 0.5 * 0.1801559; // mg per kg per minute
-    glycolysisMax_ = 0.35 * 2.0 * 0.1801559; // mg per kg per minute
+    glycolysisMax_ = 0.9 * 0.35 * 2.0 * 0.1801559; // mg per kg per minute
     
     reabsorptionThreshold_ = 11*180.1559/10; //mg/dl equivalent of 11 mmol/l
     glucoseExcretionRate_ = 100/(11*180.1559/10); // mg per minute per(mg/dl)
@@ -33,12 +29,9 @@ void Kidneys::processTick()
 {
     double x; // to hold the random samples
     
+    static std::poisson_distribution<int> rand__ (100);
     static std::poisson_distribution<int> glucoseExcretionRate__ (1000.0*glucoseExcretionRate_);
     static std::poisson_distribution<int> glycolysisMin__ (1000.0*glycolysisMin_);
-    static std::poisson_distribution<int> gngFromLactate__ (1000.0*gngFromLactate_);
-    static std::poisson_distribution<int> gngFromGlycerol__ (1000.0*gngFromGlycerol_);
-    static std::poisson_distribution<int> gngFromGlutamine__ (1000.0*gngFromGlutamine_);
-    static std::poisson_distribution<int> gngFromAlanine__ (1000.0*gngFromAlanine_);
     
     absorptionPerTick = 0;
     releasePerTick = 0;
@@ -57,55 +50,15 @@ void Kidneys::processTick()
     glycolysisPerTick = toGlycolysis;
  
    //gluconeogenesis.
+    double gng = gngKidneys_;
+    gng *= body->insulinImpactOnGNG();
+    //gng *= (double)(rand__(sim->generator))/100.0;
+    gng *= (0.9 + (double)(rand__(sim->generator))/1000.0);
+    gng *= body->bodyWeight;
+    gngPerTick = gng;
+    body->blood->addGlucose(gng);
+    releasePerTick = gng;
 
-    double scale = body->insulinImpactOnGNG();
-    // from non-lactate sources
-    double gng =  (double)(gngFromGlycerol__(sim->generator))
-                + (double)(gngFromGlutamine__(sim->generator))
-                + (double)(gngFromAlanine__(sim->generator));
-    gng *= scale * (body->gngImpact_) * (body->bodyWeight)/1000.0;
-    if( gng > 0 )
-    {
-    	gngPerTick = gng;
-    }
-
-    // from lactate
-    gng = (double)(gngFromLactate__(sim->generator));
-    gng *= scale * (body->gngImpact_) * (body->bodyWeight)/1000.0;
-	//cout << "Puzzle2 " << gng << " ";
-    gng = body->blood->consumeGNGSubstrates(gng);
-	//cout << gng << endl;
-    if( gng > 0 )
-    {
-    	gngPerTick += gng;
-    }
-
-    body->blood->addGlucose(gngPerTick);
-    releasePerTick = gngPerTick;
-/************************************
-    x = (double)(gngFromLactateRate__(sim->generator));
-    x *= body->bodyWeight/1000.0;
-    x = body->blood->gngFromHighLactate(x);
-    if( x > 0 )
-    {
-    	glucose += x;
-    	//SimCtl::time_stamp();
-    	//cout << " GNG from lactate in Kidneys " << x << "mg" << endl;
-    }
-    gngPerTick += x;
-
-    //cout << "After GNG in kidney, glucose in kideny " << glucose << " mg, blood lactate " << body->blood->lactate << " mg" << endl;
-    
-    if( body->blood->glutamine > glutamineConsumed_ )
-    {
-        body->blood->glutamine -= glutamineConsumed_;
-    }
-    else
-    {
-        body->blood->glutamine = 0;
-    }
-********************************************/
-    
     //Glucose excretion in urine
     
     double bgl = body->blood->getBGL();
@@ -119,21 +72,21 @@ void Kidneys::processTick()
         body->blood->removeGlucose(excretionPerTick);
     }
     
-	totalExcretion += excretionPerTick;
+    totalExcretion += excretionPerTick;
 /*
     SimCtl::time_stamp();
     cout << " Kidneys:: Absorption " << absorptionPerTick << endl;
     SimCtl::time_stamp();
     cout << " Kidneys:: Release " << releasePerTick << endl;
+*/
     SimCtl::time_stamp();
     cout << " Kidneys:: Glycolysis " << glycolysisPerTick << endl;
     SimCtl::time_stamp();
+    cout << " Kidneys:: TotalExcretion " << totalExcretion << endl;
+    SimCtl::time_stamp();
     cout << " Kidneys:: GNG " << gngPerTick << endl;
-*/
     SimCtl::time_stamp();
     cout << " Kidneys:: Excretion " << excretionPerTick << endl;
-    SimCtl::time_stamp();
-    cout << " Kidneys:: TotalExcretion " << totalExcretion << endl;
 }
 
 void Kidneys::setParams()
@@ -149,11 +102,10 @@ void Kidneys::setParams()
         {
             glycolysisMax_ = itr->second;
         }
-        if(itr->first.compare("glutamineConsumed_") == 0)
+        if(itr->first.compare("gngKidneys_") == 0)
         {
-            glutamineConsumed_ = itr->second;
+            gngKidneys_ = itr->second;
         }
-        
     }
 }
 

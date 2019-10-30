@@ -75,9 +75,9 @@ void Intestine::processTick()
         	glucoseInLumen += SAGConsumed;
 		totalSAGConsumed += SAGConsumed;
 
-    		//SimCtl::time_stamp();
-    		//cout << " Chyme:: RAG " << itr->RAG << " SAG " << itr->SAG << " origRAG " << itr->origRAG 
-		//<< " origSAG " << itr->origSAG << " RAGConsumed " << RAGConsumed << " SAGConsumed " << SAGConsumed << endl;
+    		SimCtl::time_stamp();
+    		cout << " Chyme:: RAG " << itr->RAG << " SAG " << itr->SAG << " origRAG " << itr->origRAG 
+		<< " origSAG " << itr->origSAG << " RAGConsumed " << RAGConsumed << " SAGConsumed " << SAGConsumed << endl;
 
     		//if( itr->RAG == 0 && itr->SAG == 0 )
     		//	itr = chyme.erase(itr);
@@ -214,7 +214,7 @@ Intestine::Intestine(HumanBody* body_)
     
     //Gerich: insulin dependent: 0.5 to 5 micromol per kg per minute
     glycolysisMin_ = 0.35*0.5*0.1801559;
-    glycolysisMax_ = 0.35* 2.0*0.1801559;
+    glycolysisMax_ = 0.9 * 0.35 * 2.0*0.1801559;
 
 	totalRAGDigested = 0;
 	totalSAGDigested = 0;

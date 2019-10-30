@@ -11,6 +11,14 @@ void Muscles::setParams()
     for( ParamSet::iterator itr = body->metabolicParameters[body->bodyState][MUSCLES].begin();
         itr != body->metabolicParameters[body->bodyState][MUSCLES].end(); itr++)
     {
+        if(itr->first.compare("Glycogen") == 0)
+        {
+            glycogen = 1000.0 * (itr->second);
+        }
+        if(itr->first.compare("MaxGlycogen") == 0)
+        {
+            glycogenMax_ = 1000.0 * (itr->second);
+        }
         if(itr->first.compare("Glut4Km_") == 0)
         {
             Glut4Km_ = itr->second;
@@ -19,6 +27,10 @@ void Muscles::setParams()
         {
             Glut4VMAX_ = itr->second;
         }
+        if(itr->first.compare("PeakGlut4VMAX_") == 0)
+        {
+            PeakGlut4VMAX_ = itr->second;
+        }
         if(itr->first.compare("maxGlucoseAbsorptionDuringExercise_") == 0)
         {
             maxGlucoseAbsorptionDuringExercise_ = itr->second;
@@ -26,10 +38,6 @@ void Muscles::setParams()
         if(itr->first.compare("basalGlucoseAbsorbed_") == 0)
         {
             basalGlucoseAbsorbed_ = itr->second;
-        }
-        if(itr->first.compare("glucoseOxidationFraction_") == 0)
-        {
-            glucoseOxidationFraction_ = itr->second;
         }
         if(itr->first.compare("baaToGlutamine_") == 0)
         {
@@ -42,6 +50,14 @@ void Muscles::setParams()
         if(itr->first.compare("glycolysisMax_") == 0)
         {
             glycolysisMax_ = itr->second;
+        }
+        if(itr->first.compare("glucoseToGlycogen_") == 0)
+        {
+            glucoseToGlycogen_ = (itr->second);
+        }
+        if(itr->first.compare("glycogenShareDuringExerciseMean_") == 0)
+        {
+            glycogenShareDuringExerciseMean_ = itr->second;
         }
     }
 }
@@ -57,7 +73,6 @@ void Muscles::processTick()
     static std::poisson_distribution<int> rand__ (100);
     static std::poisson_distribution<int> glycolysisMin__ (1000.0*glycolysisMin_);
     static std::poisson_distribution<int> basalAbsorption__ (1000.0*basalGlucoseAbsorbed_);
-    static std::poisson_distribution<int> Glut4VMAX__ (1000.0*Glut4VMAX_);
     static std::poisson_distribution<int> baaToGlutamine__ (1000.0*baaToGlutamine_);
     static std::poisson_distribution<int> glucoseToGlycogen__ (1000.0*glucoseToGlycogen_);
     
@@ -69,19 +84,18 @@ void Muscles::processTick()
 
     double x; // to hold the random samples
     double currEnergyNeed = body->currentEnergyExpenditure();
-    SimCtl::time_stamp();
-    cout << "HumanBody:: Current Energy Expenditure: " << currEnergyNeed << endl;
+    //SimCtl::time_stamp();
+    //cout << "HumanBody:: Current Energy Expenditure: " << currEnergyNeed << endl;
 
-    double insulin_level = body->blood->insulinLevel;
 
     if( body->isExercising() )
     {
         // 10% of energy comes from glucose on average
         //oxidation of 1g of carbs yields 4kcal of energy
-        x = (double)(rand__(sim->generator));
-        oxidationPerTick = 0.1*(x/100.0)*1000.0*(currEnergyNeed)/4.0; // in milligrams
+	x = (0.9 + (double)(rand__(sim->generator))/1000.0);
+        oxidationPerTick = 0.1*x*1000.0*(currEnergyNeed)/4.0; // in milligrams
 
-	double max = maxGlucoseAbsorptionDuringExercise_*(body->bodyWeight)*(body->maxGlucoseAbsorptionInMusclesDuringExerciseImpact_);
+	double max = maxGlucoseAbsorptionDuringExercise_*(body->bodyWeight);
         if( oxidationPerTick > max )
                 oxidationPerTick = max;
 	 
@@ -97,14 +111,17 @@ void Muscles::processTick()
         
 	// glycogen share depends on the exercise % VO2Max
 	double intensity = body->percentVO2Max;
-        double mean = 0.53;
+        double mean = glycogenShareDuringExerciseMean_;
         double stddev = 0.2;
         double glycogenShare = 0.9*0.5*(1 + erf((intensity - mean)/(stddev*sqrt(2))));
 
-        x = (double)(rand__(sim->generator));
-        glycogenOxidizedPerTick = glycogenShare*(x/100.0)*1000.0*currEnergyNeed/4.0; // in milligrams
+	x = (0.9 + (double)(rand__(sim->generator))/1000.0);
+        glycogenOxidizedPerTick = glycogenShare*x*1000.0*currEnergyNeed/4.0; // in milligrams
         glycogen -= glycogenOxidizedPerTick;
         glycogenBreakdownPerTick += glycogenOxidizedPerTick;
+
+    	//SimCtl::time_stamp();
+        //cout << " Muscles: GlycogenShare " << glycogenShare << endl;
 
         // do glycolysis
         
@@ -127,33 +144,59 @@ void Muscles::processTick()
     }
     else
     {
-	// basal absorption
-        x = (double)(basalAbsorption__(sim->generator));
-        x = x*(body->bodyWeight)/1000.0;
-        
-        body->blood->removeGlucose(x);
-	glucoseAbsorbedPerTick = x;
-	glucose += x;
+    	double insulin_level = body->blood->insulinLevel;
 
-        // Absorption via GLUT4
-        
-        double bgl = body->blood->getBGL();
-        double glMuscles = glucose/volume_;
-        double diff = bgl-glMuscles;
-        
-        double scale = (body->glut4Impact_)*(insulin_level);
-        double g;
-        
-        if( diff > 0 )
-        {
-            x = (double)(Glut4VMAX__(sim->generator));
-            x = x*(body->bodyWeight)/1000.0;
-            g = scale*x*diff/(diff + Glut4Km_);
+    	// basal absorption
+    	x = (double)(basalAbsorption__(sim->generator));
+    	x = x*(body->bodyWeight)/1000.0;
+    	body->blood->removeGlucose(x);
+    	glucoseAbsorbedPerTick = x;
+    	glucose += x;
 
-            body->blood->removeGlucose(g);
-	    glucoseAbsorbedPerTick += g;
-	    glucose += g;
-        }
+    	// Absorption via GLUT4
+    	double bgl = body->blood->getBGL();
+    	double glMuscles = glucose/volume_;
+    	double diff = bgl-glMuscles;
+        
+	double scale = body->glut4Impact_;
+
+        if( ((int)(SimCtl::ticks) > body->lastHardExerciseAt + 60) || (bgl < (body->blood->baseBGL())) )
+                scale *= insulin_level;
+
+    	double g;
+        
+    	if( diff > 0 )
+    	{
+		x = PeakGlut4VMAX_;
+                x -= glycogen * (PeakGlut4VMAX_ - Glut4VMAX_)/glycogenMax_;
+                x *= (0.9 + (double)(rand__(sim->generator))/1000.0);
+                x *= body->bodyWeight;
+         	g = scale*x*diff/(diff + Glut4Km_);
+
+         	body->blood->removeGlucose(g);
+         	glucoseAbsorbedPerTick += g;
+	 	glucose += g;
+    	}
+
+    	// glycogen synthesis
+        
+    	double toGlycogen = (double)(glucoseToGlycogen__(sim->generator)) * (body->bodyWeight)/1000.0;
+   
+    	if( toGlycogen > glucose )
+        	toGlycogen = glucose;
+   
+   	if( toGlycogen > 0 )
+   	{
+       		glycogen += toGlycogen;
+   	}
+
+   	if( glycogen > glycogenMax_ )
+   	{
+       		toGlycogen -= glycogen - glycogenMax_;
+       		glycogen = glycogenMax_;
+   	}
+   	glycogenSynthesizedPerTick = toGlycogen;
+   	glucose -= toGlycogen;
 
         // glycolysis
 
@@ -193,26 +236,6 @@ void Muscles::processTick()
 ******************/
         }
         
-	// glycogen synthesis
-        
-	double toGlycogen = (double)(glucoseToGlycogen__(sim->generator)) * (body->bodyWeight)/1000.0;
-   
-        if( toGlycogen > glucose )
-           toGlycogen = glucose;
-   
-    	if( toGlycogen > 0 )
-    	{
-        	glycogen += toGlycogen;
-    	}
-
-    	if( glycogen > glycogenMax_ )
-    	{
-        	toGlycogen -= glycogen - glycogenMax_;
-        	glycogen = glycogenMax_;
-    	}
-        glycogenSynthesizedPerTick = toGlycogen;
-    	glucose -= toGlycogen;
-
         // oxidation
         //oxidationPerTick = 0.5*(body->blood->insulinLevel)*glucoseAbsorbedPerTick;
         oxidationPerTick = glucose;
@@ -228,7 +251,7 @@ void Muscles::processTick()
     if( glycogen < 0 )
     {
     	SimCtl::time_stamp();
-        cout << "Glycogen went negative\n";
+        cout << "Glycogen in muscles went negative\n";
         exit(-1);
     }
     
@@ -257,18 +280,18 @@ void Muscles::processTick()
     cout << " Muscles:: GlycogenBreakdown " << glycogenBreakdownPerTick << endl;
 
     SimCtl::time_stamp();
-    cout << " Muscles:: glycogen " << glycogen << endl;
-    //SimCtl::time_stamp();
-    //cout << " Muscles:: Oxidation " << oxidationPerTick << endl;
+    cout << " Muscles:: glycogen " << glycogen/1000.0 << endl;
+    SimCtl::time_stamp();
+    cout << " Muscles:: Oxidation " << oxidationPerTick << endl;
     //SimCtl::time_stamp();
     //cout << " Muscles:: GlycogenOxidation " << glycogenOxidizedPerTick << endl;
-    //SimCtl::time_stamp();
-    //cout << " Muscles:: Glycolysis " << glycolysisPerTick << endl;
-
     SimCtl::time_stamp();
-    cout << " Muscles:: TotalGlucoseOxidized " << oxidationPerTick + glycogenOxidizedPerTick << endl;
+    cout << " Muscles:: Glycolysis " << glycolysisPerTick << endl;
 
-    totalGlucoseAbsorbed += glucoseAbsorbedPerTick;
+    //SimCtl::time_stamp();
+    //cout << " Muscles:: TotalGlucoseOxidized " << oxidationPerTick + glycogenOxidizedPerTick << endl;
+
+    //totalGlucoseAbsorbed += glucoseAbsorbedPerTick;
     //SimCtl::time_stamp();
    // cout << " Muscles:: totalGlucoseAbsorbed " << totalGlucoseAbsorbed << endl;
 }
@@ -276,10 +299,11 @@ void Muscles::processTick()
 Muscles::Muscles(HumanBody* myBody)
 {
     body = myBody;
-    glycogenMax_ = 0.4*(body->bodyWeight)*15000.0; //40% of body weight is muscles
+    //glycogenMax_ = 0.4*(body->bodyWeight)*15000.0; //40% of body weight is muscles
     // glycogen storing capacity of muscles: 15g/kg of wet muscle weight
     // Frayn Chapter 9
-    glycogen = glycogenMax_;
+    glycogenMax_ = 500*1000.0;
+    glycogen = 500*1000.0;
     volume_ = 250;
     glucose = 0;
     
@@ -298,20 +322,17 @@ Muscles::Muscles(HumanBody* myBody)
     
     //See the explanation in processTick()
     glycolysisMin_ = 0.35 * 1.0 * 0.1801559; //mg per kg per minute
-    glycolysisMax_ = 0.35 * 15.0 * 0.1801559; //mg per kg per minute
+    glycolysisMax_ = 0.9 * 0.35 * 15.0 * 0.1801559; //mg per kg per minute
     
     glucoseToGlycogen_ = 15.0 * 0.1801559; // 15 micromol per kg per minute
 
     Glut4Km_ = 5*180.1559/10.0; //mg/dl equivalent of 5 mmol/l
-    Glut4VMAX_ = 2.7; //mg per kg per minute
+    Glut4VMAX_ = 3.5; //mg per kg per minute
+    PeakGlut4VMAX_ = 2*3.5; //mg per kg per minute
     
-    glucoseOxidationFraction_ = 0.5;
-    //15% of the oral glucose taken up by muscle (2.5±0.9 g) was released as lactate, alanine,
-    //or pyruvate; 50% (8.9±1.4 g) was oxidized, and 35% (6.4±2.3 g) was available for storage.
-    //(source: Skeletal Muscle Glycolysis, Oxidation, and Storage of an Oral Glucose Load, Kelley et.al.)
-
     totalGlucoseAbsorbed = 0;
 
     maxGlucoseAbsorptionDuringExercise_ = 30.0 * 0.1801559;
+    glycogenShareDuringExerciseMean_ = 0.53;
 }
 

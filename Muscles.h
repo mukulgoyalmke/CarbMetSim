@@ -2,18 +2,21 @@
 #define __HumanBody__Muscles__
 
 class HumanBody;
+class Liver;
 
 class Muscles
 {
     friend class HumanBody;
+    friend class SimCtl;
+    friend class Liver;
     double glycogen;
     double glycogenMax_;
+    double glycogenShareDuringExerciseMean_;
     double glucose; // mg
     double volume_; //in dl
     
     double basalGlucoseAbsorbed_;
     double maxGlucoseAbsorptionDuringExercise_;
-    double glucoseOxidationFraction_;
     double baaToGlutamine_;
     double glycolysisMin_;
     double glycolysisMax_;
@@ -22,6 +25,7 @@ class Muscles
 
     double Glut4Km_;
     double Glut4VMAX_; // mg per kg per minute
+    double PeakGlut4VMAX_; // mg per kg per minute
 
     HumanBody* body;
 

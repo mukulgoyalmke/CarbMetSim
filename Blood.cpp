@@ -30,16 +30,10 @@ Blood::Blood(HumanBody* myBody)
     peakInsulinLevel_ = 1.0;
     insulinLevel = baseInsulinLevel_;
 
-/***************
-    currIndex = 1;
-    for(int i = 0; i <= INSULIN_DELAY; i++ )
-	pastInsulinLevels[i] = 0.0;
-****************/
-    
     //Gerich: insulin dependent: 0.5 to 5 micromol per kg per minute
     glycolysisMin_ = 0.35 * 0.5 * 0.1801559;
     //glycolysisMax_ = 0.35 * 5 * 0.1801559;
-    glycolysisMax_ = 0.35 * 2 * 0.1801559;
+    glycolysisMax_ = 0.9*0.35 * 2 * 0.1801559;
     
     glycolysisToLactate_ = 1.0;
 
@@ -67,18 +61,6 @@ Blood::Blood(HumanBody* myBody)
 
 	totalGlycolysisSoFar = 0;
 }
-
-/****************
-double Blood::delayedInsulinLevel()
-{
-    int index = currIndex + INSULIN_DELAY;
-    
-    if( index > INSULIN_DELAY )
-        index -= (INSULIN_DELAY + 1);
-    
-	return pastInsulinLevels[index];
-}
-******************/
 
 void Blood::updateRBCs()
 {
@@ -165,6 +147,49 @@ double Blood::currentHbA1c()
     return glycated_rbcs/rbcs;
 }
 
+void Blood::updateInsulinLevel()
+{
+    	double bgl = glucose/fluidVolume_;
+        if( bgl >= highGlucoseLevel_)
+                insulinLevel = peakInsulinLevel_;
+        else
+        {
+                if( bgl <= minGlucoseLevel_ )
+                        insulinLevel = 0;
+                else
+                {
+                                if( bgl >= baseGlucoseLevel_ )
+                                        insulinLevel = baseInsulinLevel_ + (peakInsulinLevel_ - baseInsulinLevel_)
+                                                *(bgl - baseGlucoseLevel_)/(highGlucoseLevel_ - baseGlucoseLevel_);
+                                else
+                                {
+                                        if( body->isExercising() )
+                                        {
+                                                if( body->percentVO2Max >= body->intensityPeakGlucoseProd_ )
+                                                {
+                                                        insulinLevel = 0;
+                                                }
+                                                else
+                                                {
+                                                        double restIntensity = 3.5*2.0/(body->vo2Max);
+                                                        if( body->percentVO2Max < restIntensity )
+                                                        {
+                                                                cout << "%VO2 less than restIntensity when body is exercising" << endl;
+                                                                exit(-1);
+                                                        }
+                                                        insulinLevel = baseInsulinLevel_ - (body->percentVO2Max - restIntensity)*
+                                                                        (baseInsulinLevel_)/(body->intensityPeakGlucoseProd_ - restIntensity);
+                                                }
+                                        }
+                                        else
+                                        {
+                                           insulinLevel = (baseInsulinLevel_)*(bgl - minGlucoseLevel_)/(baseGlucoseLevel_ - minGlucoseLevel_);
+                                        }
+                                }
+                }
+        }
+}
+
 void Blood::processTick(){
     
     double x; // to hold the random samples
@@ -184,44 +209,10 @@ void Blood::processTick(){
     glycolysisPerTick = toGlycolysis;
     body->blood->lactate += glycolysisToLactate_*toGlycolysis;
     
-    double bgl = glucose/fluidVolume_;
     
     //update insulin level
 
-    if( bgl >= highGlucoseLevel_)
-        insulinLevel = peakInsulinLevel_;
-    else
-    {
-    	insulinLevel = baseInsulinLevel_ + (peakInsulinLevel_ - baseInsulinLevel_)*(bgl - baseGlucoseLevel_)/(highGlucoseLevel_ - baseGlucoseLevel_);
-
-	if (insulinLevel < baseInsulinLevel_ )
-		insulinLevel = baseInsulinLevel_;
-/*****************
-
-	if( temp >= insulinLevel )
-		insulinLevel = temp;
-	else
-	{
-		if( temp <= 3* baseInsulinLevel_ ) 
-		{
-			insulinLevel -= baseInsulinLevel_/100.0;
-			if( insulinLevel < baseInsulinLevel_ )
-				insulinLevel = baseInsulinLevel_;
-		}
-		else
-			insulinLevel = temp;
-	}
-******************/
-    }
-    
-/*****************
-    currIndex--;
-    
-    if( currIndex < 0 )
-        currIndex = INSULIN_DELAY;
-    
-    pastInsulinLevels[currIndex] = insulinLevel;
-******************/
+    updateInsulinLevel();
 
     //calculating average bgl during a day
     
@@ -235,6 +226,7 @@ void Blood::processTick(){
         //cout << " Blood::avgBGL " << avgBGLOneDay << endl;
     }
     
+    double bgl = glucose/fluidVolume_;
     avgBGLOneDaySum += bgl;
     avgBGLOneDayCount++;
 
@@ -246,38 +238,6 @@ void Blood::processTick(){
     SimCtl::time_stamp();
     cout << " Blood:: insulinLevel " << insulinLevel << endl;
     //" lactate " << lactate << " glutamine " << glutamine << " alanine " << alanine << " gngsubs " << gngSubstrates << " bAA " << branchedAminoAcids << " uAA " <<  unbranchedAminoAcids << endl;
-}
-
-double Blood::consumeGNGSubstrates(double howmuch)
-{
-/*
-    double total = gngSubstrates + lactate + alanine + glutamine;
-    
-    if( total < howmuch )
-    {
-        gngSubstrates = 0;
-        lactate = 0;
-        alanine = 0;
-        glutamine = 0;
-        return total;
-    }
-
-    double factor = (total - howmuch)/total;
-
-    gngSubstrates *= factor;
-    lactate *= factor;
-    alanine *= factor;
-    glutamine *= factor;
-*/
-    if( lactate < howmuch )
-    {
-	double total = lactate;
-        lactate = 0;
-        return total;
-    }
-
-    lactate -= howmuch;
-    return howmuch;
 }
 
 void Blood::setParams()
@@ -340,7 +300,7 @@ void Blood::removeGlucose(double howmuch)
 {
     glucose -= howmuch;
     
-    std::cout << "Glucose consumed " << howmuch << " ,glucose left " << glucose << std::endl;
+    //std::cout << "Glucose consumed " << howmuch << " ,glucose left " << glucose << std::endl;
     
     if( getBGL() <= minGlucoseLevel_ )
     {

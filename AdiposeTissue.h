@@ -10,6 +10,8 @@ class HumanBody;
 
 class AdiposeTissue
 {
+    friend class HumanBody;
+
     double fat; // fat in body in grams
     HumanBody* body;
 public:

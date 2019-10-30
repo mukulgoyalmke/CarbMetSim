@@ -12,13 +12,8 @@ class Kidneys
     double glycolysisMax_;
     
     // mg per kg per minute
-    double gngFromLactate_;
-    double gngFromGlycerol_;
-    double gngFromGlutamine_;
-    double gngFromAlanine_;
+    double gngKidneys_;
 
-    double glutamineConsumed_;
-    
     double reabsorptionThreshold_;
     double glucoseExcretionRate_;
 

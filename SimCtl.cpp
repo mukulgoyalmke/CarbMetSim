@@ -26,6 +26,14 @@ void SimCtl::time_stamp()
 	<< " " << ticks << " ";
 }
 
+bool SimCtl::dayOver()
+{
+        if( ((ticks % TICKS_PER_DAY) == 0) && (ticks > 0) )
+                return true;
+        else
+                return false;
+}
+
 void SimCtl::run_simulation()
 {
     // Always in this loop
@@ -73,6 +81,8 @@ int SimCtl::fire_event()
             body->processExerciseEvent(((ExerciseEvent*)event_)->exerciseID_, ((ExerciseEvent*)event_)->duration_);
             break;
         case HALT:
+	    SimCtl::time_stamp();
+    	    cout << " weight " << body->bodyWeight << endl;
             exit(0);
         default:
             break;

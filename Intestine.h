@@ -16,6 +16,7 @@ unsigned ts; // time (in ticks) when the chyme entered the intestine
 class Intestine
 {
     friend class HumanBody;
+    friend class Liver;
 
 	double totalRAGDigested;
 	double totalSAGDigested;

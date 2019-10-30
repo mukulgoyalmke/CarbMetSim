@@ -38,13 +38,26 @@ void Stomach::processTick()
 
 	//Chyme leakage does not change the relative fraction of carbs/fats/proteins in the chyme left in the stomach. 
 
+	double totalFood = RAG+SAG+protein+fat;
 	if( stomachEmpty )
+	{
+    		SimCtl::time_stamp();
+		cout << " Gastric Emptying:: Total Food " << totalFood << " Calorific Density " << 0
+		<< " geSlope " << 0 <<  " ragInBolus " << 0 << " sagInBolus " << 0 << endl;
 		return;
+	}
 
     	static std::poisson_distribution<int> geConstant__ (1000.0*geConstant_);
 
         double geConstant = (double)(geConstant__(sim->generator))/1000.0;
-	double totalFood = RAG+SAG+protein+fat;
+
+	if( totalFood <= 0.001 )
+	{
+		cout << "Stomach should have been considered empty! RAG " << RAG << " SAG " << SAG
+			<< " protein " << protein << " fat " << fat << endl;
+		exit(-1);
+	}
+
 	// calorific density of the food in stomach
 	double calorificDensity = (4.0*(RAG+SAG+protein) + 9.0*fat)/totalFood; 
 	double geSlope = 9.0 * geSlopeMin_/calorificDensity;
@@ -70,14 +83,14 @@ void Stomach::processTick()
 	cout << " Gastric Emptying:: Total Food " << totalFood << " Calorific Density " << calorificDensity
 	<< " geSlope " << geSlope <<  " ragInBolus " << ragInBolus << " sagInBolus " << sagInBolus << endl;
 
-    	if( (RAG == 0) && (SAG == 0) && (protein == 0) && (fat == 0) )
+    	if( (RAG <= 0.001) && (SAG <= 0.001) && (protein <= 0.001) && (fat <= 0.001) )
     	{
         	stomachEmpty = true;
         	body->stomachEmpty();
+    		SimCtl::time_stamp();
+    		cout << " Stomach:: SAG " << SAG << " RAG " << RAG <<  " protein " << protein << " fat " << fat << endl;
     	}
     
-    	//SimCtl::time_stamp();
-    	//cout << " Stomach:: SAG " << SAG << " RAG " << RAG <<  " protein " << protein << " fat " << fat << endl;
 }
 
 void Stomach::addFood(unsigned foodID, double howmuch)

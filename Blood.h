@@ -26,7 +26,6 @@ class Blood
     double  rbcBirthRate_; // how many million RBCs take birth each minute
     double glycationProbSlope_; // g*l_i + c is the probability that an unglycated RBC glycates during a minute
     double glycationProbConst_;
-    double minGlucoseLevel_;
     double glycolysisMin_;
     double glycolysisMax_;
     double glycolysisToLactate_; // what fraction of glycolysed glucose becomes lactate?
@@ -35,10 +34,10 @@ class Blood
     void updateRBCs();
     HumanBody* body;
 
+    double minGlucoseLevel_;
     double baseGlucoseLevel_;
     double highGlucoseLevel_;
     double highLactateLevel_;
-    double baseInsulinLevel_;
     double peakInsulinLevel_;
     
     double fluidVolume_; // in deciliters
@@ -52,8 +51,7 @@ public:
     //All the metabolites are in units of milligrams of glucose
     double glucose; // in milligrams
     double insulinLevel;
-//    double pastInsulinLevels[INSULIN_DELAY+1];
-//    int currIndex;
+    double baseInsulinLevel_;
     double lactate;
     double branchedAminoAcids;
 // see Table 2.2 in Frayn
@@ -73,10 +71,11 @@ public:
     void addGlucose(double howmuch);
     double getBGL(){return glucose/fluidVolume_;}
     double getGNGSubstrates(){ return (gngSubstrates + lactate + alanine + glutamine);}
-    double consumeGNGSubstrates(double howmuch);
     double gngFromHighLactate(double rate_);
     double baseBGL() {return baseGlucoseLevel_;}
+    double highBGL() {return highGlucoseLevel_;}
     double volume() {return fluidVolume_;}
+    void updateInsulinLevel();
 };
 
 #endif /* defined(__HumanBody__Blood__) */
