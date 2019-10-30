@@ -90,12 +90,13 @@ double HumanBody::insulinImpactOnGlycolysis()
 	return scale;
 }
 
+/********************************************
 double HumanBody::insulinImpactOnGNG()
 {
 	return 1.0;
 }
+********************************************/
 
-/********************************************
 double HumanBody::insulinImpactOnGNG()
 {
         double insulin_level = blood->insulinLevel;
@@ -123,7 +124,6 @@ double HumanBody::insulinImpactOnGNG()
         }
         //return 1.0;
 }
-********************************************/
 
 double HumanBody::insulinImpactOnGlycogenBreakdownInLiver()
 {
