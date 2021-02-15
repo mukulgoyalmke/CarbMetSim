@@ -10,7 +10,7 @@ ALL LIVER glucoseToGlycogenInLiver_ 6.75
 ALL LIVER glycogenToGlucoseInLiver_ 1.25
 ALL LIVER gngLiver_ 0.38
 ALL LIVER maxLipogenesis_ 400.0
-ALL KIDNEYS gngKidneys_ 0.38
+ALL KIDNEY gngKidneys_ 0.38
 ALL HUMAN_BODY gngImpact_ 6.0
 ALL HUMAN_BODY liverGlycogenBreakdownImpact_ 6.0
 ALL HUMAN_BODY intensityPeakGlucoseProd_ 0.2
